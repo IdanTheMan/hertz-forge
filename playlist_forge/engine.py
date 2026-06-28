@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  PLAYLIST ENGINE
+#  PLAYLIST ENGINE — loop+shuffle reshuffles at cycle boundaries
 # ═══════════════════════════════════════════════════════════════
 
 import random
@@ -88,12 +88,10 @@ class ChannelConfig:
             sig = _osc(t, wave, carrier)
             if primary_side == "left":
                 return (sig.copy(),
-                        np.zeros(
-                            len(t),
-                            dtype=np.float32))
-            return (np.zeros(
-                        len(t),
-                        dtype=np.float32),
+                        np.zeros(len(t),
+                                 dtype=np.float32))
+            return (np.zeros(len(t),
+                             dtype=np.float32),
                     sig.copy())
 
         bp  = 2 * np.pi * bw * t
@@ -114,25 +112,21 @@ class ChannelConfig:
             car = _osc(t, wave, carrier)
 
         if amp > 0:
-            env = (1.0
-                   - amp * 0.5 * (1.0 - sb))
+            env = 1.0 - amp * 0.5 * (1.0 - sb)
             sig = car * env
         elif self.fm_on:
             sig = car * 0.7
         else:
             sig = car
 
-        left = np.zeros(
-            len(t), dtype=np.float32)
-        right = np.zeros(
-            len(t), dtype=np.float32)
+        left  = np.zeros(len(t), dtype=np.float32)
+        right = np.zeros(len(t), dtype=np.float32)
 
         if bi > 0:
             ps = 1 + bi * 9
             pn = np.clip(
                 0.5 - 0.5 * np.tanh(
-                    ps * np.cos(
-                        bp / 2 - np.pi / 4)),
+                    ps * np.cos(bp / 2 - np.pi / 4)),
                 0, 1)
             cos_pan = np.cos(pn * np.pi / 2)
             sin_pan = np.sin(pn * np.pi / 2)
@@ -161,7 +155,7 @@ class RowConfig:
         self.bi_wave     = d["bi_wave"]
         self.bi_bw       = d["bi_bw"]
         self.duration    = d["duration"]
-        self.included    = True   # ← participates in loop/shuffle
+        self.included    = True
 
 
 class Playlist:
@@ -190,7 +184,6 @@ class Playlist:
             self._rebuild_order()
 
     def _rebuild_order(self):
-        """Build play order from included rows only."""
         self._play_order = [
             i for i, r in enumerate(self.rows)
             if r.included
@@ -219,6 +212,31 @@ class PlaylistEngine:
         self.vol           = 0.5
         self.device_index  = None
         self.channels      = 2
+        self._last_cycle   = 0
+
+    # ── row lookup ─────────────────────────────────────────────
+
+    def _build_playable(self, order, looping):
+        playable = []
+        for idx in order:
+            dur = self.playlist.rows[idx].duration
+            if dur > 0:
+                playable.append((idx, dur))
+            elif not looping and idx == order[-1]:
+                playable.append((idx, 0))
+        return playable
+
+    def _find_row(self, playable, t):
+        acc = 0.0
+        for idx, dur in playable:
+            if dur <= 0:
+                return idx, t - acc
+            if t < acc + dur:
+                return idx, t - acc
+            acc += dur
+        if playable:
+            return playable[-1][0], t
+        return -1, 0.0
 
     def _current_row(self):
         if (not self.playlist
@@ -228,15 +246,10 @@ class PlaylistEngine:
         t = self.elapsed()
         order = self.playlist._play_order
         looping = self.playlist.row_loop
+        shuffling = self.playlist.row_shuffle
 
-        playable = []
-        for idx in order:
-            dur = self.playlist.rows[idx].duration
-            if dur > 0:
-                playable.append((idx, dur))
-            elif (not looping
-                  and idx == order[-1]):
-                playable.append((idx, 0))
+        playable = self._build_playable(
+            order, looping)
 
         if not playable:
             if order:
@@ -246,29 +259,29 @@ class PlaylistEngine:
         total = sum(
             d for _, d in playable if d > 0)
 
-        if looping and total > 0:
-            t = t % total
-        elif looping and total <= 0:
-            if playable:
-                return playable[0][0], t
-            return -1, 0.0
-        elif total > 0 and t >= total:
-            last_idx, last_dur = playable[-1]
-            if last_dur <= 0:
-                return last_idx, t - total
-            return -1, 0.0
+        # ── non-looping ──
+        if not looping:
+            return self._find_row(playable, t)
 
-        acc = 0.0
-        for idx, dur in playable:
-            if dur <= 0:
-                return idx, t - acc
-            if t < acc + dur:
-                return idx, t - acc
-            acc += dur
+        # ── looping ──
+        if total <= 0:
+            return playable[0][0], t
 
-        if playable:
-            return playable[-1][0], t
-        return -1, 0.0
+        cycle_num = int(t / total)
+        pos = t - cycle_num * total
+
+        # reshuffle at each cycle boundary
+        if (shuffling
+                and cycle_num != self._last_cycle):
+            self._last_cycle = cycle_num
+            self.playlist._rebuild_order()
+            order = self.playlist._play_order
+            playable = self._build_playable(
+                order, True)
+
+        return self._find_row(playable, pos)
+
+    # ── rendering ──────────────────────────────────────────────
 
     def _render_stereo(self, t):
         left  = np.zeros(len(t))
@@ -310,8 +323,7 @@ class PlaylistEngine:
         if ch == 1:
             return (
                 (s[:, 0] + s[:, 1]) * 0.5
-            ).reshape(-1, 1).astype(
-                np.float32)
+            ).reshape(-1, 1).astype(np.float32)
         if ch == 2:
             return s
         o = np.zeros(
@@ -322,15 +334,14 @@ class PlaylistEngine:
 
     def _cb(self, outdata, frames,
             time_info, status):
-        t = ((np.arange(frames)
-              + self._phase) / self.SR)
+        t = ((np.arange(frames) + self._phase)
+             / self.SR)
         self._phase += frames
         r  = self._render_device(t)
         nc = outdata.shape[1]
         if r.shape[1] < nc:
             p = np.zeros(
-                (frames, nc),
-                dtype=np.float32)
+                (frames, nc), dtype=np.float32)
             p[:, :r.shape[1]] = r
             outdata[:] = p
         elif r.shape[1] > nc:
@@ -341,8 +352,9 @@ class PlaylistEngine:
     def start(self):
         if self.playing:
             return
-        self._phase = 0
-        self._t0    = _time.time()
+        self._phase      = 0
+        self._t0         = _time.time()
+        self._last_cycle = 0
         self.stream = sd.OutputStream(
             samplerate=self.SR,
             channels=self.channels,
@@ -377,8 +389,8 @@ class PlaylistEngine:
         saved_t0 = self._t0
         while rem > 0:
             n = min(self.SR, rem)
-            t = ((np.arange(n)
-                  + self._phase) / self.SR)
+            t = ((np.arange(n) + self._phase)
+                 / self.SR)
             self._phase += n
             parts.append(
                 self._render_stereo(t))
