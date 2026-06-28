@@ -19,5 +19,6 @@ MUTED    = "#555578"
 FG       = "#c8c8e0"
 DIVIDER  = "#1e1e36"
 CARD     = "#131326"
+ULINE    = "#0a0a14"
 
 SLIDER_LEN = 100
