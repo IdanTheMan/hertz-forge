@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  PLAYLIST ENGINE — loop+shuffle reshuffles at cycle boundaries
+#  PLAYLIST ENGINE
 # ═══════════════════════════════════════════════════════════════
 
 import random
@@ -126,7 +126,8 @@ class ChannelConfig:
             ps = 1 + bi * 9
             pn = np.clip(
                 0.5 - 0.5 * np.tanh(
-                    ps * np.cos(bp / 2 - np.pi / 4)),
+                    ps * np.cos(
+                        bp / 2 - np.pi / 4)),
                 0, 1)
             cos_pan = np.cos(pn * np.pi / 2)
             sin_pan = np.sin(pn * np.pi / 2)
@@ -156,6 +157,7 @@ class RowConfig:
         self.bi_bw       = d["bi_bw"]
         self.duration    = d["duration"]
         self.included    = True
+        self.name        = ""
 
 
 class Playlist:
@@ -189,7 +191,12 @@ class Playlist:
             if r.included
         ]
         if self.row_shuffle:
-            random.shuffle(self._play_order)
+            if len(self._play_order) > 1:
+                prev = list(self._play_order)
+                random.shuffle(self._play_order)
+                while self._play_order == prev:
+                    random.shuffle(
+                        self._play_order)
 
     def prepare_playback(self):
         self._rebuild_order()
@@ -214,15 +221,14 @@ class PlaylistEngine:
         self.channels      = 2
         self._last_cycle   = 0
 
-    # ── row lookup ─────────────────────────────────────────────
-
     def _build_playable(self, order, looping):
         playable = []
         for idx in order:
             dur = self.playlist.rows[idx].duration
             if dur > 0:
                 playable.append((idx, dur))
-            elif not looping and idx == order[-1]:
+            elif (not looping
+                  and idx == order[-1]):
                 playable.append((idx, 0))
         return playable
 
@@ -259,18 +265,15 @@ class PlaylistEngine:
         total = sum(
             d for _, d in playable if d > 0)
 
-        # ── non-looping ──
         if not looping:
             return self._find_row(playable, t)
 
-        # ── looping ──
         if total <= 0:
             return playable[0][0], t
 
         cycle_num = int(t / total)
         pos = t - cycle_num * total
 
-        # reshuffle at each cycle boundary
         if (shuffling
                 and cycle_num != self._last_cycle):
             self._last_cycle = cycle_num
@@ -280,8 +283,6 @@ class PlaylistEngine:
                 order, True)
 
         return self._find_row(playable, pos)
-
-    # ── rendering ──────────────────────────────────────────────
 
     def _render_stereo(self, t):
         left  = np.zeros(len(t))
