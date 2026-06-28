@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  PLAYLIST ENGINE — with loop & shuffle support
+#  PLAYLIST ENGINE
 # ═══════════════════════════════════════════════════════════════
 
 import random
@@ -161,6 +161,7 @@ class RowConfig:
         self.bi_wave     = d["bi_wave"]
         self.bi_bw       = d["bi_bw"]
         self.duration    = d["duration"]
+        self.included    = True   # ← participates in loop/shuffle
 
 
 class Playlist:
@@ -189,8 +190,11 @@ class Playlist:
             self._rebuild_order()
 
     def _rebuild_order(self):
-        self._play_order = list(
-            range(len(self.rows)))
+        """Build play order from included rows only."""
+        self._play_order = [
+            i for i, r in enumerate(self.rows)
+            if r.included
+        ]
         if self.row_shuffle:
             random.shuffle(self._play_order)
 
@@ -198,7 +202,9 @@ class Playlist:
         self._rebuild_order()
 
     def total_duration(self):
-        return sum(r.duration for r in self.rows)
+        return sum(
+            r.duration for r in self.rows
+            if r.included)
 
 
 class PlaylistEngine:
@@ -223,7 +229,6 @@ class PlaylistEngine:
         order = self.playlist._play_order
         looping = self.playlist.row_loop
 
-        # build playable list
         playable = []
         for idx in order:
             dur = self.playlist.rows[idx].duration

@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  GUI — loop & shuffle at row and playlist level
+#  GUI — include/exclude rows and playlists from loop/shuffle
 # ═══════════════════════════════════════════════════════════════
 
 import os
@@ -52,7 +52,6 @@ class App:
         self.output_devices = get_output_devices()
         self._playing_cont = None
 
-        # playlist-level loop/shuffle
         self._pl_loop       = False
         self._pl_shuffle    = False
         self._pl_play_order = []
@@ -76,8 +75,7 @@ class App:
             "*TCombobox*Listbox.background",
             SURFACE)
         self.root.option_add(
-            "*TCombobox*Listbox.foreground",
-            FG)
+            "*TCombobox*Listbox.foreground", FG)
         self.root.option_add(
             "*TCombobox*Listbox.selectBackground",
             ACCENT2)
@@ -291,7 +289,7 @@ class App:
             "<MouseWheel>",
             self._on_mousewheel)
 
-        # ── PLAYLISTS header with controls ──
+        # ── PLAYLISTS header ──
         pl_hdr = tk.Frame(self._inner, bg=BG)
         pl_hdr.pack(
             fill="x", padx=8, pady=(8, 2))
@@ -363,8 +361,13 @@ class App:
         self._rebuild_pl_order()
 
     def _rebuild_pl_order(self):
-        self._pl_play_order = list(
-            range(len(self._containers)))
+        """Build playlist order from included
+        containers only."""
+        self._pl_play_order = [
+            i for i, c in enumerate(
+                self._containers)
+            if c.get("included", True)
+        ]
         if self._pl_shuffle:
             random.shuffle(
                 self._pl_play_order)
@@ -411,15 +414,34 @@ class App:
         frame.pack(
             fill="x", padx=4, pady=6, ipady=4)
 
-        # ── line 1: name + delete ──
+        # ── line 1: name + include + delete ──
         h1 = tk.Frame(frame, bg=CARD)
         h1.pack(fill="x", padx=8, pady=(6, 0))
+
+        # include checkbox
+        pl_include_var = tk.BooleanVar(
+            value=True)
+        include_cb = tk.Checkbutton(
+            h1, variable=pl_include_var,
+            text="",
+            bg=CARD, fg=ACCENT,
+            selectcolor=SURFACE2,
+            activebackground=CARD,
+            activeforeground=ACCENT,
+            font=("Helvetica", 9, "bold"))
+        include_cb.pack(side="left")
+        # tooltip-like label
+        tk.Label(
+            h1, text="include",
+            bg=CARD, fg="#6666a0",
+            font=("Helvetica", 8)).pack(
+                side="left")
 
         name_lbl = tk.Label(
             h1, text=pl.name, bg=CARD,
             fg=ACCENT,
             font=("Helvetica", 11, "bold"))
-        name_lbl.pack(side="left")
+        name_lbl.pack(side="left", padx=(8, 0))
 
         tk.Button(
             h1, text="×",
@@ -539,8 +561,19 @@ class App:
             "row_ind":    row_ind,
             "rows_frame": rows_frame,
             "slots":      [],
+            "included":   True,
         }
         self._containers.append(container)
+
+        # wire include checkbox
+        def _toggle_pl_include():
+            container["included"] = \
+                pl_include_var.get()
+            self._rebuild_pl_order()
+            self._update_pl_dur(container)
+
+        include_cb.config(
+            command=_toggle_pl_include)
 
         # wire buttons
         h1.winfo_children()[-1].config(
@@ -748,14 +781,29 @@ class App:
         card = tk.Frame(border, bg=CARD)
         card.pack(fill="x", padx=1, pady=1)
 
-        # ── header ──
+        # ── header: include + row num + × ──
         hdr = tk.Frame(card, bg=CARD)
         hdr.pack(fill="x", padx=8, pady=(4, 0))
+
+        # row include checkbox
+        row_inc_var = tk.BooleanVar(
+            value=cfg.included)
+        tk.Checkbutton(
+            hdr, variable=row_inc_var,
+            text="",
+            bg=CARD, fg=ACCENT,
+            selectcolor=SURFACE2,
+            activebackground=CARD,
+            activeforeground=ACCENT,
+            font=("Helvetica", 9, "bold")
+        ).pack(side="left")
+
         num_lbl = tk.Label(
             hdr, text=f"Row {index + 1}",
             bg=CARD, fg=ACCENT,
             font=("Helvetica", 10, "bold"))
         num_lbl.pack(side="left")
+
         tk.Button(
             hdr, text="×",
             font=("Helvetica", 11, "bold"),
@@ -839,18 +887,30 @@ class App:
         adv_btn.pack(side="right")
 
         slot = {
-            "border":   border,
-            "frame":    card,
-            "body":     body,
-            "adv_wrap": adv_wrap,
-            "config":   cfg,
-            "num_lbl":  num_lbl,
-            "sync_var": sync_var,
-            "bin_var":  bin_var,
-            "dur_spin": dur_spin,
-            "_active":  False,
+            "border":    border,
+            "frame":     card,
+            "body":      body,
+            "adv_wrap":  adv_wrap,
+            "config":    cfg,
+            "num_lbl":   num_lbl,
+            "sync_var":  sync_var,
+            "bin_var":   bin_var,
+            "dur_spin":  dur_spin,
+            "_active":   False,
+            "row_inc_var": row_inc_var,
         }
         container["slots"].append(slot)
+
+        # wire include checkbox
+        def _toggle_row_include():
+            cfg.included = row_inc_var.get()
+            container["playlist"] \
+                ._rebuild_order()
+            self._update_pl_dur(container)
+
+        row_inc_var.trace_add(
+            "write",
+            lambda *_: _toggle_row_include())
 
         # ── helpers ──
         def _mirror_l_to_r():
@@ -992,8 +1052,6 @@ class App:
         else:
             self._build_normal_body(slot)
 
-    # ── non-binaural ──
-
     def _build_normal_body(self, slot):
         body = slot["body"]
         body.columnconfigure(
@@ -1095,8 +1153,6 @@ class App:
         amp_spin.grid(
             row=0, column=1, sticky="w")
         slot[f"{side}_amp_spin"] = amp_spin
-
-    # ── binaural ──
 
     def _build_binaural_body(self, slot):
         cfg  = slot["config"]
@@ -1493,7 +1549,7 @@ class App:
         self._vol_var.set(v)
 
     # ══════════════════════════════════════════════════════════
-    #  TRANSPORT — chains playlists
+    #  TRANSPORT
     # ══════════════════════════════════════════════════════════
 
     def _start_pl(self, container):
@@ -1546,7 +1602,6 @@ class App:
         ci = self._containers.index(
             self._playing_cont)
 
-        # find position in playlist order
         try:
             pos = self._pl_play_order.index(ci)
         except ValueError:
