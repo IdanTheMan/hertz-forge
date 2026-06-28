@@ -3,7 +3,7 @@
 # Hertz Forge
 
 Brainwave Entrainment Sound Generator with binaural beats, amplitude modulation,
-bilateral panning, frequency modulation, and real-time waveform visualisation.
+bilateral panning and frequency modulation.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.9+-brightgreen)
@@ -27,7 +27,7 @@ This will:
 ## Manual Install
 
 ```bash
-git clone https://github.com/seuyh/hertz-forge.git
+git clone https://github.com/IdanTheMan/hertz-forge.git
 cd hertz-forge
 pip install -r requirements.txt
 python run.py
@@ -44,7 +44,6 @@ python run.py
 | **Binaural Beats** | Pure sine tones L/R, amplitude-modulated with carrier envelope |
 | **Frequency Modulation** | Sweep range around carrier frequency |
 | **WAV Export** | Custom duration (HH:MM:SS), saves stereo WAV |
-| **Waveform Visualiser** | Real-time preview of the output signal |
 | **Live Updates** | All parameter changes apply instantly to audio |
 
 ## Requirements

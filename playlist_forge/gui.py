@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  GUI — all playlists visible, each in a container
+#  GUI — all playlists visible, playing indicators on L and R
 # ═══════════════════════════════════════════════════════════════
 
 import os
@@ -22,6 +22,7 @@ _BODY_KEYS = {
     "right_carrier_spin", "right_wave_var",
     "right_bw_spin", "right_amp_spin",
     "bi_l_lbl", "bi_r_lbl",
+    "l_indicator", "r_indicator",
 }
 
 _ADV_KEYS = {
@@ -34,7 +35,7 @@ _ADV_KEYS = {
 class App:
 
     def __init__(self):
-        self._playlists   = []
+        self._playlists    = []
         self._containers   = []
         self.eng           = PlaylistEngine()
         self.output_devices = get_output_devices()
@@ -142,20 +143,21 @@ class App:
         tk.Label(top, text="Hertz Forge", bg=BG, fg=ACCENT,
                  font=("Helvetica", 18, "bold")).pack(
                      anchor="w", padx=12, pady=(10, 0))
-        tk.Label(top, text="Playlist Mode — Sequential Brainwaves",
+        tk.Label(top,
+                 text="Playlist Mode — Sequential Brainwaves",
                  bg=BG, fg=MUTED,
                  font=("Helvetica", 9)).pack(
                      anchor="w", padx=12)
         self._sep(top)
 
-        # device
         self._section(top, "OUTPUT DEVICE")
         df = tk.Frame(top, bg=BG)
         df.pack(fill="x", padx=8, pady=2)
         self.device_names = [d[0] for d in self.output_devices]
         if not self.device_names:
             self.device_names = ["(no devices)"]
-        self.device_var = tk.StringVar(value=self.device_names[0])
+        self.device_var = tk.StringVar(
+            value=self.device_names[0])
         self.dev_cb = ttk.Combobox(
             df, textvariable=self.device_var,
             values=self.device_names,
@@ -170,7 +172,6 @@ class App:
                        side="right", padx=(6, 0))
         self._sep(top)
 
-        # volume
         self._section(top, "VOLUME")
         vf = tk.Frame(top, bg=BG)
         vf.pack(fill="x", padx=8, pady=2)
@@ -198,7 +199,8 @@ class App:
         self._scanvas = tk.Canvas(
             bottom, bg=BG, highlightthickness=0,
             yscrollcommand=self._sbar.set)
-        self._scanvas.pack(side="left", fill="both", expand=True)
+        self._scanvas.pack(side="left", fill="both",
+                           expand=True)
         self._sbar.config(command=self._scanvas.yview)
 
         self._inner = tk.Frame(self._scanvas, bg=BG)
@@ -208,7 +210,8 @@ class App:
             "<Configure>",
             lambda e: self._scanvas.configure(
                 scrollregion=self._scanvas.bbox("all")))
-        self._scanvas.bind("<Configure>", self._on_canvas_resize)
+        self._scanvas.bind("<Configure>",
+                           self._on_canvas_resize)
         self._scanvas.bind_all("<MouseWheel>",
                                self._on_mousewheel)
 
@@ -217,12 +220,12 @@ class App:
         self._pl_frame = tk.Frame(self._inner, bg=BG)
         self._pl_frame.pack(fill="x", padx=4, pady=4)
 
-        # + Playlist button (always at bottom)
         btn_f = tk.Frame(self._inner, bg=BG)
         btn_f.pack(fill="x", padx=4, pady=(8, 4))
         ttk.Button(btn_f, text="+ Playlist",
                    style="Small.TButton",
-                   command=self._add_playlist).pack(anchor="center")
+                   command=self._add_playlist).pack(
+                       anchor="center")
 
         tk.Frame(self._inner, bg=BG, height=20).pack()
 
@@ -244,8 +247,7 @@ class App:
                 "Playlist", "Keep at least one playlist.")
             return
         if self._playing_cont is container:
-            self.eng.stop()
-            self._playing_cont = None
+            self._stop_current()
         self._playlists.pop(ci)
         self._containers.pop(ci)
         container["frame"].destroy()
@@ -346,14 +348,14 @@ class App:
         }
         self._containers.append(container)
 
-        # wire buttons (need container ref)
-        h1.winfo_children()[-1].config(             # × button
+        # wire buttons
+        h1.winfo_children()[-1].config(
             command=lambda c=container:
                 self._remove_playlist(c))
         play_btn.config(
             command=lambda c=container:
                 self._toggle_pl(c))
-        h2.winfo_children()[1].config(               # export button
+        h2.winfo_children()[1].config(
             command=lambda c=container:
                 self._save_pl(c))
 
@@ -372,7 +374,7 @@ class App:
         self._update_pl_dur(container)
 
     # ══════════════════════════════════════════════════════════
-    #  ROW MANAGEMENT (per-container)
+    #  ROW MANAGEMENT
     # ══════════════════════════════════════════════════════════
 
     def _add_row(self, container):
@@ -410,13 +412,16 @@ class App:
                 return
 
     # ══════════════════════════════════════════════════════════
-    #  ACTIVE ROW (cross-container)
+    #  ACTIVE ROW — indicators on L and R
     # ══════════════════════════════════════════════════════════
 
     def _set_active_row(self, playing_cont, row_idx):
         for container in self._containers:
             for ri, slot in enumerate(container["slots"]):
-                if container is playing_cont and ri == row_idx:
+                active = (container is playing_cont
+                          and ri == row_idx)
+                # card + row number
+                if active:
                     slot["frame"].config(
                         highlightbackground=ACCENT)
                     slot["num_lbl"].config(fg=ACCENT)
@@ -424,6 +429,18 @@ class App:
                     slot["frame"].config(
                         highlightbackground="#222244")
                     slot["num_lbl"].config(fg=MUTED)
+                # L indicator
+                l_ind = slot.get("l_indicator")
+                if l_ind:
+                    l_ind.config(
+                        fg=ACCENT if active else CARD,
+                        bg=ACCENT if active else CARD)
+                # R indicator
+                r_ind = slot.get("r_indicator")
+                if r_ind:
+                    r_ind.config(
+                        fg=ACCENT if active else CARD,
+                        bg=ACCENT if active else CARD)
 
     # ══════════════════════════════════════════════════════════
     #  SYNC — core params
@@ -458,9 +475,12 @@ class App:
         cfg = slot["config"]
         if not slot["sync_var"].get():
             return
-        src  = cfg.left if source_side == "left" else cfg.right
-        dst  = cfg.right if source_side == "left" else cfg.left
-        d_side = "right" if source_side == "left" else "left"
+        src  = (cfg.left if source_side == "left"
+                else cfg.right)
+        dst  = (cfg.right if source_side == "left"
+                else cfg.left)
+        d_side = ("right" if source_side == "left"
+                  else "left")
         s_fk = "l" if source_side == "left" else "r"
         d_fk = "r" if source_side == "left" else "l"
 
@@ -506,9 +526,11 @@ class App:
         num_lbl.pack(side="left")
         tk.Button(hdr, text="×",
                   font=("Helvetica", 11, "bold"), bg=CARD,
-                  fg="#cc6666", activebackground="#442222",
-                  activeforeground="#cc6666", relief="flat",
-                  bd=0, padx=6, cursor="hand2",
+                  fg="#cc6666",
+                  activebackground="#442222",
+                  activeforeground="#cc6666",
+                  relief="flat", bd=0, padx=6,
+                  cursor="hand2",
                   command=lambda sf=card, c=container:
                       self._on_remove_click(c, sf)
         ).pack(side="right")
@@ -528,7 +550,8 @@ class App:
         tk.Checkbutton(
             ctrl, variable=sync_var, text="sync",
             bg=CARD, fg=ACCENT, selectcolor=SURFACE2,
-            activebackground=CARD, activeforeground=ACCENT,
+            activebackground=CARD,
+            activeforeground=ACCENT,
             font=("Helvetica", 9, "bold")
         ).pack(side="left")
 
@@ -536,11 +559,13 @@ class App:
         tk.Checkbutton(
             ctrl, variable=bin_var, text="binaural",
             bg=CARD, fg=ACCENT, selectcolor=SURFACE2,
-            activebackground=CARD, activeforeground=ACCENT,
+            activebackground=CARD,
+            activeforeground=ACCENT,
             font=("Helvetica", 9, "bold")
         ).pack(side="left", padx=(8, 0))
 
-        tk.Label(ctrl, text="Duration", bg=CARD, fg="#8888aa",
+        tk.Label(ctrl, text="Duration", bg=CARD,
+                 fg="#8888aa",
                  font=("Helvetica", 8, "bold")).pack(
                      side="left", padx=(12, 0))
 
@@ -569,8 +594,10 @@ class App:
 
         slot = {"frame": card, "body": body,
                 "adv_wrap": adv_wrap, "config": cfg,
-                "num_lbl": num_lbl, "sync_var": sync_var,
-                "bin_var": bin_var, "dur_spin": dur_spin}
+                "num_lbl": num_lbl,
+                "sync_var": sync_var,
+                "bin_var": bin_var,
+                "dur_spin": dur_spin}
         container["slots"].append(slot)
 
         # ── helpers ──
@@ -593,8 +620,10 @@ class App:
         def _mirror_adv_l_to_r():
             cfg.right.bi_val       = cfg.left.bi_val
             cfg.right.fm_on        = cfg.left.fm_on
-            cfg.right.fm_offset_lo = cfg.left.fm_offset_lo
-            cfg.right.fm_offset_hi = cfg.left.fm_offset_hi
+            cfg.right.fm_offset_lo = \
+                cfg.left.fm_offset_lo
+            cfg.right.fm_offset_hi = \
+                cfg.left.fm_offset_hi
             sp = slot.get("right_bi_spin")
             if sp:
                 sp.set(cfg.left.bi_val)
@@ -668,8 +697,9 @@ class App:
                         cfg.binaural_on = False
                     adv_btn.config(
                         text="Advanced ▾", fg=ACCENT)
-                    adv_wrap.pack(fill="x", padx=6,
-                                  pady=(0, 2), before=ctrl)
+                    adv_wrap.pack(
+                        fill="x", padx=6,
+                        pady=(0, 2), before=ctrl)
                 else:
                     adv_btn.config(
                         text="Advanced ▸", fg=MUTED)
@@ -702,26 +732,46 @@ class App:
         else:
             self._build_normal_body(slot)
 
+    # ── non-binaural ──
+
     def _build_normal_body(self, slot):
         body = slot["body"]
         body.columnconfigure(0, weight=1, uniform="sides")
         body.columnconfigure(2, weight=1, uniform="sides")
 
         lf = tk.Frame(body, bg=CARD)
-        lf.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        lf.grid(row=0, column=0, sticky="nsew",
+                padx=(0, 4))
         tk.Frame(body, bg=DIVIDER, width=1).grid(
             row=0, column=1, sticky="ns")
         rf = tk.Frame(body, bg=CARD)
-        rf.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
+        rf.grid(row=0, column=2, sticky="nsew",
+                padx=(4, 0))
 
-        tk.Label(lf, text="L", bg=CARD, fg="#8888aa",
+        # L header with indicator
+        lh = tk.Frame(lf, bg=CARD)
+        lh.pack(fill="x")
+        slot["l_indicator"] = tk.Label(
+            lh, text="▶", bg=CARD, fg=CARD,
+            font=("Helvetica", 8, "bold"),
+            width=2, anchor="w")
+        slot["l_indicator"].pack(side="left")
+        tk.Label(lh, text="L", bg=CARD, fg="#8888aa",
                  font=("Helvetica", 9, "bold"),
-                 anchor="w").pack(fill="x")
+                 anchor="w").pack(side="left")
         self._build_side(lf, slot, "left")
 
-        tk.Label(rf, text="R", bg=CARD, fg="#8888aa",
+        # R header with indicator
+        rh = tk.Frame(rf, bg=CARD)
+        rh.pack(fill="x")
+        slot["r_indicator"] = tk.Label(
+            rh, text="▶", bg=CARD, fg=CARD,
+            font=("Helvetica", 8, "bold"),
+            width=2, anchor="w")
+        slot["r_indicator"].pack(side="left")
+        tk.Label(rh, text="R", bg=CARD, fg="#8888aa",
                  font=("Helvetica", 9, "bold"),
-                 anchor="w").pack(fill="x")
+                 anchor="w").pack(side="left")
         self._build_side(rf, slot, "right")
 
     def _build_side(self, parent, slot, side):
@@ -738,11 +788,13 @@ class App:
                 setattr(ch, 'carrier', v),
                 self._apply_sync(slot, s),
                 self._update_fm_display(slot, s)))
-        car_spin.grid(row=0, column=1, sticky="w", padx=(0, 2))
+        car_spin.grid(row=0, column=1, sticky="w",
+                      padx=(0, 2))
         slot[f"{side}_carrier_spin"] = car_spin
 
         wv = tk.StringVar(value=ch.wave)
-        wc = ttk.Combobox(r, textvariable=wv, values=WAVES,
+        wc = ttk.Combobox(r, textvariable=wv,
+                          values=WAVES,
                           state="readonly", width=8)
         wc.grid(row=0, column=2, sticky="w")
         wc.bind("<<ComboboxSelected>>",
@@ -775,6 +827,8 @@ class App:
         amp_spin.grid(row=0, column=1, sticky="w")
         slot[f"{side}_amp_spin"] = amp_spin
 
+    # ── binaural ──
+
     def _build_binaural_body(self, slot):
         cfg  = slot["config"]
         body = slot["body"]
@@ -793,60 +847,86 @@ class App:
             cfg.bi_bw = v
             cfg.left.bw_freq  = v
             cfg.right.bw_freq = v
-            cfg.left.carrier  = cfg.bi_carrier - v / 2
-            cfg.right.carrier = cfg.bi_carrier + v / 2
+            cfg.left.carrier  = \
+                cfg.bi_carrier - v / 2
+            cfg.right.carrier = \
+                cfg.bi_carrier + v / 2
             self._update_bin_labels(slot)
             self._update_fm_display(slot, "left")
             self._update_fm_display(slot, "right")
 
-        SpinEntry(r, width=5, from_=20, to=2000, step=1,
-                  fmt="{:.0f}",
-                  initial=str(int(cfg.bi_carrier)),
-                  suffix="Hz", bg=CARD, callback=on_carrier
-                  ).grid(row=0, column=1, sticky="w", padx=(0, 2))
+        SpinEntry(
+            r, width=5, from_=20, to=2000, step=1,
+            fmt="{:.0f}",
+            initial=str(int(cfg.bi_carrier)),
+            suffix="Hz", bg=CARD, callback=on_carrier
+        ).grid(row=0, column=1, sticky="w", padx=(0, 2))
 
         wv = tk.StringVar(value=cfg.bi_wave)
         ttk.Combobox(r, textvariable=wv, values=WAVES,
                      state="readonly", width=8
                      ).grid(row=0, column=2, sticky="w")
-        wv.trace_add("write",
-                     lambda *_: setattr(cfg, 'bi_wave', wv.get()))
+        wv.trace_add(
+            "write",
+            lambda *_: setattr(cfg, 'bi_wave', wv.get()))
 
         tk.Label(r, text="·", bg=CARD, fg=MUTED).grid(
             row=0, column=3, padx=6)
         tk.Label(r, text="BW", bg=CARD, fg="#8888aa",
                  font=("Helvetica", 8, "bold")).grid(
                      row=0, column=4)
-        SpinEntry(r, width=5, from_=0, to=100, step=0.5,
-                  fmt="{:.1f}",
-                  initial=f"{cfg.bi_bw:.1f}",
-                  suffix="Hz", bg=CARD, callback=on_bw
-                  ).grid(row=0, column=5, sticky="w")
+        SpinEntry(
+            r, width=5, from_=0, to=100, step=0.5,
+            fmt="{:.1f}",
+            initial=f"{cfg.bi_bw:.1f}",
+            suffix="Hz", bg=CARD, callback=on_bw
+        ).grid(row=0, column=5, sticky="w")
 
+        # L|R columns
         cols = tk.Frame(body, bg=CARD)
         cols.pack(fill="x")
         cols.columnconfigure(0, weight=1, uniform="sides")
         cols.columnconfigure(2, weight=1, uniform="sides")
 
         lf = tk.Frame(cols, bg=CARD)
-        lf.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        lf.grid(row=0, column=0, sticky="nsew",
+                padx=(0, 4))
         tk.Frame(cols, bg=DIVIDER, width=1).grid(
             row=0, column=1, sticky="ns")
         rf = tk.Frame(cols, bg=CARD)
-        rf.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
+        rf.grid(row=0, column=2, sticky="nsew",
+                padx=(4, 0))
 
-        tk.Label(lf, text="L", bg=CARD, fg="#8888aa",
+        # L header with indicator
+        lh = tk.Frame(lf, bg=CARD)
+        lh.pack(fill="x")
+        slot["l_indicator"] = tk.Label(
+            lh, text="▶", bg=CARD, fg=CARD,
+            font=("Helvetica", 8, "bold"),
+            width=2, anchor="w")
+        slot["l_indicator"].pack(side="left")
+        tk.Label(lh, text="L", bg=CARD, fg="#8888aa",
                  font=("Helvetica", 9, "bold"),
-                 anchor="w").pack(fill="x")
+                 anchor="w").pack(side="left")
+
         r1 = self._label_row(lf, "Carrier")
         slot["bi_l_lbl"] = tk.Label(
             r1, text="", bg=CARD, fg=ACCENT,
             font=("Helvetica", 9, "bold"))
         slot["bi_l_lbl"].grid(row=0, column=1, sticky="w")
 
-        tk.Label(rf, text="R", bg=CARD, fg="#8888aa",
+        # R header with indicator
+        rh = tk.Frame(rf, bg=CARD)
+        rh.pack(fill="x")
+        slot["r_indicator"] = tk.Label(
+            rh, text="▶", bg=CARD, fg=CARD,
+            font=("Helvetica", 8, "bold"),
+            width=2, anchor="w")
+        slot["r_indicator"].pack(side="left")
+        tk.Label(rh, text="R", bg=CARD, fg="#8888aa",
                  font=("Helvetica", 9, "bold"),
-                 anchor="w").pack(fill="x")
+                 anchor="w").pack(side="left")
+
         r3 = self._label_row(rf, "Carrier")
         slot["bi_r_lbl"] = tk.Label(
             r3, text="", bg=CARD, fg=ACCENT,
@@ -855,6 +935,7 @@ class App:
 
         self._update_bin_labels(slot)
 
+        # Combined Amp row
         r_amp = self._label_row(body, "Amp")
 
         tk.Label(r_amp, text="L", bg=CARD, fg="#8888aa",
@@ -867,7 +948,8 @@ class App:
             suffix="", bg=CARD,
             callback=lambda v: setattr(
                 cfg.left, 'amp_val', v))
-        l_amp.grid(row=0, column=2, sticky="w", padx=(0, 2))
+        l_amp.grid(row=0, column=2, sticky="w",
+                   padx=(0, 2))
         slot["left_amp_spin"] = l_amp
 
         tk.Label(r_amp, text="·", bg=CARD, fg=MUTED).grid(
@@ -897,18 +979,24 @@ class App:
             slot.pop(k, None)
         cfg = slot["config"]
         if cfg.binaural_on:
-            self._build_adv_side(slot["adv_wrap"], slot, "left")
-            self._build_adv_side(slot["adv_wrap"], slot, "right")
+            self._build_adv_side(
+                slot["adv_wrap"], slot, "left")
+            self._build_adv_side(
+                slot["adv_wrap"], slot, "right")
         else:
             wrap = slot["adv_wrap"]
-            wrap.columnconfigure(0, weight=1, uniform="sides")
-            wrap.columnconfigure(2, weight=1, uniform="sides")
+            wrap.columnconfigure(0, weight=1,
+                                 uniform="sides")
+            wrap.columnconfigure(2, weight=1,
+                                 uniform="sides")
             lf = tk.Frame(wrap, bg=CARD)
-            lf.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+            lf.grid(row=0, column=0, sticky="nsew",
+                    padx=(0, 4))
             tk.Frame(wrap, bg=DIVIDER, width=1).grid(
                 row=0, column=1, sticky="ns")
             rf = tk.Frame(wrap, bg=CARD)
-            rf.grid(row=0, column=2, sticky="nsew", padx=(4, 0))
+            rf.grid(row=0, column=2, sticky="nsew",
+                    padx=(4, 0))
             self._build_adv_side(lf, slot, "left")
             self._build_adv_side(rf, slot, "right")
 
@@ -929,7 +1017,8 @@ class App:
             fmt="{:.0f}",
             initial=str(int(ch.bi_val)),
             suffix="", bg=CARD, callback=on_bi)
-        bi_spin.grid(row=0, column=1, sticky="w", padx=(0, 2))
+        bi_spin.grid(row=0, column=1, sticky="w",
+                     padx=(0, 2))
         slot[f"{side}_bi_spin"] = bi_spin
 
         tk.Label(r, text="·", bg=CARD, fg=MUTED).grid(
@@ -945,7 +1034,8 @@ class App:
         tk.Checkbutton(
             r, variable=fm_var, text="FM",
             bg=CARD, fg=ACCENT, selectcolor=SURFACE2,
-            activebackground=CARD, activeforeground=ACCENT,
+            activebackground=CARD,
+            activeforeground=ACCENT,
             font=("Helvetica", 9, "bold"),
             command=on_fm
         ).grid(row=0, column=3, padx=(0, 4))
@@ -970,16 +1060,19 @@ class App:
             r2, width=5, from_=20, to=2000, step=1,
             fmt="{:.0f}", initial=str(int(lo_hz)),
             suffix="Hz", bg=CARD, callback=on_lo)
-        lo_spin.grid(row=0, column=1, sticky="w", padx=(0, 2))
+        lo_spin.grid(row=0, column=1, sticky="w",
+                     padx=(0, 2))
 
         tk.Label(r2, text=" — ",
-                 bg=CARD, fg=MUTED).grid(row=0, column=2)
+                 bg=CARD, fg=MUTED).grid(
+                     row=0, column=2)
 
         hi_spin = SpinEntry(
             r2, width=5, from_=20, to=2000, step=1,
             fmt="{:.0f}", initial=str(int(hi_hz)),
             suffix="Hz", bg=CARD, callback=on_hi)
-        hi_spin.grid(row=0, column=3, sticky="w", padx=(2, 0))
+        hi_spin.grid(row=0, column=3, sticky="w",
+                     padx=(2, 0))
 
         slot[f"fm_{fk}_lo"] = lo_spin
         slot[f"fm_{fk}_hi"] = hi_spin
@@ -999,13 +1092,16 @@ class App:
 
     def _update_bin_labels(self, slot):
         cfg = slot["config"]
-        freq = cfg.bi_carrier; bw = cfg.bi_bw
+        freq = cfg.bi_carrier
+        bw   = cfg.bi_bw
         lbl_l = slot.get("bi_l_lbl")
         lbl_r = slot.get("bi_r_lbl")
         if lbl_l:
-            lbl_l.config(text=f"L: {freq - bw/2:.1f} Hz")
+            lbl_l.config(
+                text=f"L: {freq - bw/2:.1f} Hz")
         if lbl_r:
-            lbl_r.config(text=f"R: {freq + bw/2:.1f} Hz")
+            lbl_r.config(
+                text=f"R: {freq + bw/2:.1f} Hz")
 
     def _update_fm_display(self, slot, side):
         cfg = slot["config"]
@@ -1024,7 +1120,8 @@ class App:
     # ══════════════════════════════════════════════════════════
 
     def _on_canvas_resize(self, event):
-        self._scanvas.itemconfig(self._cw, width=event.width)
+        self._scanvas.itemconfig(self._cw,
+                                 width=event.width)
 
     def _on_mousewheel(self, event):
         self._scanvas.yview_scroll(
@@ -1049,7 +1146,8 @@ class App:
                 test_device_stereo(idx, ch)
             except Exception as e:
                 self.root.after(0, lambda:
-                    messagebox.showerror("Error", str(e)))
+                    messagebox.showerror("Error",
+                                         str(e)))
         threading.Thread(target=go, daemon=True).start()
 
     def _on_vol_var(self, *_):
@@ -1084,7 +1182,8 @@ class App:
         container["play_btn"].config(text="■  Stop")
         container["status_lbl"].config(
             text="● Playing", fg=ACCENT)
-        container["frame"].config(highlightbackground=ACCENT)
+        container["frame"].config(
+            highlightbackground=ACCENT)
         container["time_lbl"].config(text="00:00:00")
         container["row_ind"].config(text="")
 
@@ -1094,8 +1193,10 @@ class App:
             return
         self.eng.stop()
         c["play_btn"].config(text="▶  Play")
-        c["status_lbl"].config(text="● Stopped", fg=MUTED)
-        c["frame"].config(highlightbackground="#333355")
+        c["status_lbl"].config(
+            text="● Stopped", fg=MUTED)
+        c["frame"].config(
+            highlightbackground="#333355")
         c["time_lbl"].config(text="")
         c["row_ind"].config(text="")
         self._playing_cont = None
@@ -1109,18 +1210,18 @@ class App:
                 "Duration",
                 "Set at least one row duration > 0")
             return
-        e = int(duration); s = e % 60; m = (e // 60) % 60
-        h = e // 3600
+        e = int(duration)
+        s = e % 60; m = (e // 60) % 60; h = e // 3600
         dur_str = f"{h:02d}:{m:02d}:{s:02d}"
         pl_name = pl.name.lower().replace(" ", "_")
-        initial = f"{pl_name}_{dur_str.replace(':','')}.wav"
+        initial = \
+            f"{pl_name}_{dur_str.replace(':','')}.wav"
         path = filedialog.asksaveasfilename(
             defaultextension=".wav",
             filetypes=[("WAV", "*.wav")],
             initialfile=initial)
         if not path:
             return
-        prev_text = container["status_lbl"].cget("text")
         container["status_lbl"].config(
             text="● Saving…", fg=ACCENT)
         self.root.update()
@@ -1132,15 +1233,21 @@ class App:
         def go():
             save_eng.save_wav(path, duration=duration)
             mb = os.path.getsize(path) / (1024 * 1024)
-            self.root.after(0, lambda: (
-                container["status_lbl"].config(
-                    text=f"● Saved ({mb:.1f} MB)",
-                    fg=ACCENT),
-                self.root.after(3000, lambda:
+            def done():
+                if self._playing_cont is container:
                     container["status_lbl"].config(
-                        text="● Stopped", fg=MUTED))
-                if self._playing_cont is not container
-                else None))
+                        text="● Playing", fg=ACCENT)
+                else:
+                    container["status_lbl"].config(
+                        text=f"● Saved ({mb:.1f} MB)",
+                        fg=ACCENT)
+                    self.root.after(
+                        3000,
+                        lambda: container[
+                            "status_lbl"].config(
+                            text="● Stopped",
+                            fg=MUTED))
+            self.root.after(0, done)
 
         threading.Thread(target=go, daemon=True).start()
 
