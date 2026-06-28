@@ -363,11 +363,6 @@ class App:
 
     def _remove_playlist(self, container):
         ci = self._containers.index(container)
-        if len(self._playlists) <= 1:
-            messagebox.showinfo(
-                "Playlist",
-                "Keep at least one playlist.")
-            return
         if self._playing_cont is container:
             self._stop_current()
         self._playlists.pop(ci)
@@ -701,7 +696,7 @@ class App:
 
         num_lbl = tk.Label(
             hdr, text=f"Row {index + 1}",
-            bg=CARD, fg=ACCENT,
+            bg=CARD, fg=MUTED,
             font=("Helvetica", 10, "bold"))
         num_lbl.pack(side="left")
 
