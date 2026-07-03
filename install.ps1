@@ -13,7 +13,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$REPO_URL = "https://github.com/IdanTheMan/hertz-forge/archive/refs/heads/main.zip"
+$REPO_URL = "https://github.com/IdanTheMan/hertz-forge"
 $INSTALL_DIR = Join-Path $env:APPDATA "HertzForge"
 $ZIP_PATH    = Join-Path $env:TEMP "hertz-forge.zip"
 
