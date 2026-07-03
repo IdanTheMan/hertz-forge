@@ -5,7 +5,7 @@
 Brainwave Entrainment Sound Generator with binaural beats, amplitude modulation,
 bilateral panning and frequency modulation.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Python](https://img.shields.io/badge/python-3.9+-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
