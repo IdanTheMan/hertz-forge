@@ -1,19 +1,19 @@
 
----
+# ---
 
-**`install.ps1`**
+# **`install.ps1`**
 
-```powershell
+# ```powershell
 # ═══════════════════════════════════════════════════════════════
 #  Hertz Forge — Installer & Launcher
 #
 #  Run with:
 #  powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/seuyh/hertz-forge/refs/heads/main/install.ps1 | iex"
 # ═══════════════════════════════════════════════════════════════
-
+@
 $ErrorActionPreference = "Stop"
 
-$REPO_URL = "https://github.com/IdanTheMan/hertz-forge"
+$REPO_URL    = "https://github.com/IdanTheMan/hertz-forge/archive/refs/heads/main.zip"
 $INSTALL_DIR = Join-Path $env:APPDATA "HertzForge"
 $ZIP_PATH    = Join-Path $env:TEMP "hertz-forge.zip"
 
@@ -21,7 +21,7 @@ $ZIP_PATH    = Join-Path $env:TEMP "hertz-forge.zip"
 Write-Host ""
 Write-Host "  ██╗  ██╗███████╗██████╗ ████████╗███████╗" -ForegroundColor Cyan
 Write-Host "  ██║  ██║██╔════╝██╔══██╗╚══██╔══╝╚════██║ " -ForegroundColor Cyan
-Write-Host "  ███████║█████╗  ██████╔╝   ██║     ███╔═╝  " -ForegroundColor Cyan
+Write-Host "  ███████║█████╗  ██████╔╝   ██║      ██╔═╝  " -ForegroundColor Cyan
 Write-Host "  ██╔══██║██╔══╝  ██╔══██╗   ██║    ██╔═╝   " -ForegroundColor Cyan
 Write-Host "  ██║  ██║███████╗██║  ██║   ██║   ███████║" -ForegroundColor Cyan
 Write-Host "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝" -ForegroundColor Cyan
