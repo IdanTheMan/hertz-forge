@@ -11,16 +11,14 @@ bilateral panning and frequency modulation.
 
 ## One-Line Install
 
-Copy and paste into PowerShell:
+Copy and paste into Windows Run:
 
 ```
-powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/main/install.ps1 | iex"
 
-powershell -WindowStyle -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
+or
 
 powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/main/install.ps1 | iex"
-
-powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
 ```
 
 This will:
@@ -97,9 +95,6 @@ python -m hertz_forge.main
 python -m playlist_forge.main
 ```
 
-### PyCharm
-
-Set `run.py` as the run target, or right-click it and select Run.
 
 ### Exporting WAV
 

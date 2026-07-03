@@ -1,16 +1,4 @@
 
-# ---
-
-# **`install.ps1`**
-
-# ```powershell
-# ═══════════════════════════════════════════════════════════════
-#  Hertz Forge — Installer & Launcher
-#
-#  Run with:
-#  powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/seuyh/hertz-forge/refs/heads/main/install.ps1 | iex"
-# ═══════════════════════════════════════════════════════════════
-
 $ErrorActionPreference = "Stop"
 
 $REPO_URL    = "https://github.com/IdanTheMan/hertz-forge/archive/refs/heads/main.zip"
@@ -27,8 +15,6 @@ Write-Host "  ██║  ██║███████╗██║  ██║  
 Write-Host "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝" -ForegroundColor Cyan
 Write-Host "  Hertz Forge — Brainwave Entrainment Generator" -ForegroundColor DarkCyan
 Write-Host ""
-
-# ── check python ──
 Write-Host "[1/5] Checking Python..." -ForegroundColor Yellow
 
 $pythonCmd = $null
@@ -58,7 +44,6 @@ if (-not $pythonCmd) {
     }
 }
 
-# ── download ──
 Write-Host "[2/5] Downloading Hertz Forge..." -ForegroundColor Yellow
 
 try {
@@ -71,7 +56,6 @@ try {
     exit 1
 }
 
-# ── extract ──
 Write-Host "[3/5] Extracting to $INSTALL_DIR ..." -ForegroundColor Yellow
 
 if (Test-Path $INSTALL_DIR) {
@@ -90,7 +74,6 @@ try {
     exit 1
 }
 
-# ── install deps ──
 Write-Host "[4/5] Installing dependencies..." -ForegroundColor Yellow
 
 try {
@@ -100,27 +83,34 @@ try {
     Write-Host "  WARNING: pip install had issues. Trying anyway..." -ForegroundColor Yellow
 }
 
-# ── create shortcut ──
-Write-Host "[5/5] Creating desktop shortcut..." -ForegroundColor Yellow
+Write-Host "[5/5] Creating desktop shortcuts..." -ForegroundColor Yellow
 
-$shortcutPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Hertz Forge.lnk"
+$desktopPath = [Environment]::GetFolderPath("Desktop")
 $pythonPath = (Get-Command $pythonCmd -ErrorAction SilentlyContinue).Source
 if (-not $pythonPath) { $pythonPath = $pythonCmd }
 
 try {
     $ws = New-Object -ComObject WScript.Shell
-    $shortcut = $ws.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $pythonPath
-    $shortcut.Arguments = "`"$INSTALL_DIR\run.py`""
-    $shortcut.WorkingDirectory = $INSTALL_DIR
-    $shortcut.Description = "Hertz Forge — Brainwave Entrainment"
-    $shortcut.Save()
-    Write-Host "  Shortcut created on Desktop." -ForegroundColor Green
+
+    $shortcut1 = $ws.CreateShortcut((Join-Path $desktopPath "Hertz Forge.lnk"))
+    $shortcut1.TargetPath = $pythonPath
+    $shortcut1.Arguments = "`"$INSTALL_DIR\run.py`""
+    $shortcut1.WorkingDirectory = $INSTALL_DIR
+    $shortcut1.Description = "Hertz Forge - Brainwave Entrainment"
+    $shortcut1.Save()
+    Write-Host "  Created shortcut: Hertz Forge" -ForegroundColor Green
+
+    $shortcut2 = $ws.CreateShortcut((Join-Path $desktopPath "Hertz Forge Playlist.lnk"))
+    $shortcut2.TargetPath = $pythonPath
+    $shortcut2.Arguments = "`"$INSTALL_DIR\run_playlist.py`""
+    $shortcut2.WorkingDirectory = $INSTALL_DIR
+    $shortcut2.Description = "Hertz Forge - Playlist Mode"
+    $shortcut2.Save()
+    Write-Host "  Created shortcut: Hertz Forge Playlist" -ForegroundColor Green
 } catch {
-    Write-Host "  Could not create shortcut (not critical)." -ForegroundColor Yellow
+    Write-Host "  Could not create shortcuts (not critical)." -ForegroundColor Yellow
 }
 
-# ── launch ──
 Write-Host ""
 Write-Host "  Hertz Forge installed to: $INSTALL_DIR" -ForegroundColor Cyan
 Write-Host "  Launching..." -ForegroundColor Cyan
