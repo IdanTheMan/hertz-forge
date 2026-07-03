@@ -14,9 +14,9 @@ import time as _time
 # ────────────────────────────────────────────────────────────
 
 ROW_DEFAULTS = {
-    "duration":     120.0,
+    "duration":     1.0,
 
-    "left_carrier":  110.0,
+    "left_carrier":  440.0,
     "left_wave":     "sine",
     "left_bw":       40.0,
     "left_amp":      100.0,
@@ -25,7 +25,7 @@ ROW_DEFAULTS = {
     "left_fm_lo":    -30.0,
     "left_fm_hi":    40.0,
 
-    "right_carrier": 110.0,
+    "right_carrier": 440.0,
     "right_wave":    "sine",
     "right_bw":      40.0,
     "right_amp":     100.0,
@@ -404,3 +404,10 @@ class PlaylistEngine:
             wf.setsampwidth(2)
             wf.setframerate(self.SR)
             wf.writeframes(pcm.tobytes())
+
+    def switch_playlist(self, playlist):
+        """Switch to a new playlist without
+        restarting the audio stream."""
+        self.playlist = playlist
+        playlist.prepare_playback()
+        self._t0 = _time.time()

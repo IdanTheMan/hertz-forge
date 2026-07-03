@@ -38,7 +38,7 @@ python run.py
 | Feature | Description |
 |---|---|
 | **Carrier Frequency** | 40–1000 Hz with sine, triangle, sawtooth, or square wave |
-| **Brainwave Frequency** | 0.5–100 Hz with δ θ α β γ presets |
+| **Brainwave Frequency** | 0–100 Hz δ θ α β γ |
 | **Amplitude Modulation** | Pulse depth from flat to full on/off |
 | **Bilateral Panning** | Crossfade at envelope trough for spatial effects |
 | **Binaural Beats** | Pure sine tones L/R, amplitude-modulated with carrier envelope |

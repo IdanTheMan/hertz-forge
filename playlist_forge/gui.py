@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  GUI — persistent row names, drag grips, no rename on reorder
+#  GUI — collapsible playlists & rows, drag grips, dynamic lookup
 # ═══════════════════════════════════════════════════════════════
 
 import os
@@ -69,6 +69,8 @@ class App:
         self._apply_device()
         self._add_playlist("Playlist 1")
         self._tick()
+
+        self._pl_transitioning = False
 
     # ── style ─────────────────────────────────────────────────
 
@@ -193,6 +195,11 @@ class App:
         self.root.update_idletasks()
         self._scanvas.configure(
             scrollregion=self._scanvas.bbox("all"))
+
+    def _on_mousewheel(self, event):
+        self._scanvas.yview_scroll(
+            int(-1 * (event.delta / 120)),
+            "units")
 
     # ── main build ─────────────────────────────────────────────
 
@@ -367,6 +374,36 @@ class App:
             random.shuffle(self._pl_play_order)
 
     # ══════════════════════════════════════════════════════════
+    #  COLLAPSE / EXPAND
+    # ══════════════════════════════════════════════════════════
+
+    def _toggle_pl_collapse(self, container):
+        if container["collapsed"]:
+            container["content"].pack(fill="x")
+            container["collapse_btn"].config(
+                text="▾")
+            container["collapsed"] = False
+        else:
+            container["content"].pack_forget()
+            container["collapse_btn"].config(
+                text="▸")
+            container["collapsed"] = True
+        self._refresh_scroll()
+
+    def _toggle_row_collapse(self, slot):
+        if slot["collapsed"]:
+            slot["content"].pack(fill="x")
+            slot["collapse_btn"].config(
+                text="▾")
+            slot["collapsed"] = False
+        else:
+            slot["content"].pack_forget()
+            slot["collapse_btn"].config(
+                text="▸")
+            slot["collapsed"] = True
+        self._refresh_scroll()
+
+    # ══════════════════════════════════════════════════════════
     #  PLAYLIST CONTAINERS
     # ══════════════════════════════════════════════════════════
 
@@ -400,7 +437,7 @@ class App:
         frame.pack(
             fill="x", padx=4, pady=6, ipady=4)
 
-        # ── line 1: grip + include + name + delete ──
+        # ── line 1: grip + include + collapse + name + del ──
         h1 = tk.Frame(frame, bg=CARD)
         h1.pack(fill="x", padx=8, pady=(6, 0))
 
@@ -422,17 +459,30 @@ class App:
             activeforeground=ACCENT,
             font=("Helvetica", 9, "bold"))
         include_cb.pack(side="left")
-        tk.Label(
-            h1, text="include",
-            bg=CARD, fg="#6666a0",
-            font=("Helvetica", 8)).pack(
-                side="left")
+
+        collapse_btn = tk.Label(
+            h1, text="▾", bg=CARD, fg=MUTED,
+            font=("Helvetica", 10),
+            cursor="hand2", padx=2)
+        collapse_btn.pack(side="left")
+        collapse_btn.bind(
+            "<Button-1>",
+            lambda e: self._toggle_pl_collapse(
+                container))
+        collapse_btn.bind(
+            "<Enter>",
+            lambda e: collapse_btn.config(
+                fg=ACCENT))
+        collapse_btn.bind(
+            "<Leave>",
+            lambda e: collapse_btn.config(
+                fg=MUTED))
 
         name_lbl = tk.Label(
             h1, text=pl.name, bg=CARD,
             fg=ACCENT,
             font=("Helvetica", 11, "bold"))
-        name_lbl.pack(side="left", padx=(8, 0))
+        name_lbl.pack(side="left", padx=(4, 0))
 
         tk.Button(
             h1, text="×",
@@ -444,8 +494,12 @@ class App:
             cursor="hand2"
         ).pack(side="right")
 
+        # ── collapsible content ──
+        content = tk.Frame(frame, bg=CARD)
+        content.pack(fill="x")
+
         # ── line 2: controls ──
-        h2 = tk.Frame(frame, bg=CARD)
+        h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
         play_btn = tk.Button(
@@ -517,7 +571,7 @@ class App:
             side="left", padx=(12, 0))
 
         # ── line 3: playback info ──
-        h3 = tk.Frame(frame, bg=CARD)
+        h3 = tk.Frame(content, bg=CARD)
         h3.pack(fill="x", padx=8, pady=(2, 0))
 
         time_lbl = tk.Label(
@@ -531,14 +585,16 @@ class App:
         row_ind.pack(
             side="left", padx=(12, 0))
 
-        self._sep(frame)
+        tk.Frame(
+            content, bg=DIVIDER, height=1
+        ).pack(fill="x", padx=8, pady=6)
 
         # ── rows area ──
-        rows_frame = tk.Frame(frame, bg=CARD)
+        rows_frame = tk.Frame(content, bg=CARD)
         rows_frame.pack(
             fill="x", padx=4, pady=(2, 0))
 
-        btn_frame = tk.Frame(frame, bg=CARD)
+        btn_frame = tk.Frame(content, bg=CARD)
         btn_frame.pack(
             fill="x", padx=4, pady=(6, 2))
         ttk.Button(
@@ -548,20 +604,23 @@ class App:
         ).pack(anchor="center")
 
         container = {
-            "playlist":   pl,
-            "frame":      frame,
-            "name_lbl":   name_lbl,
-            "pl_grip":    pl_grip,
-            "play_btn":   play_btn,
-            "export_btn": export_btn,
-            "status_lbl": status_lbl,
-            "total_lbl":  total_lbl,
-            "time_lbl":   time_lbl,
-            "row_ind":    row_ind,
-            "rows_frame": rows_frame,
-            "btn_frame":  btn_frame,
-            "slots":      [],
-            "included":   True,
+            "playlist":     pl,
+            "frame":        frame,
+            "name_lbl":     name_lbl,
+            "pl_grip":      pl_grip,
+            "play_btn":     play_btn,
+            "export_btn":   export_btn,
+            "status_lbl":   status_lbl,
+            "total_lbl":    total_lbl,
+            "time_lbl":     time_lbl,
+            "row_ind":      row_ind,
+            "rows_frame":   rows_frame,
+            "btn_frame":    btn_frame,
+            "content":      content,
+            "collapse_btn": collapse_btn,
+            "collapsed":    False,
+            "slots":        [],
+            "included":     True,
         }
         self._containers.append(container)
 
@@ -587,12 +646,11 @@ class App:
             command=lambda c=container:
                 self._save_pl(c))
 
-        # wire playlist drag
-        pl_idx = ci
+        # wire playlist drag — dynamic lookup
         pl_grip.bind(
             "<ButtonPress-1>",
-            lambda e, i=pl_idx:
-                self._start_pl_drag(i, e))
+            lambda e, g=pl_grip:
+                self._start_pl_drag(g, e))
         pl_grip.bind(
             "<Enter>",
             lambda e, g=pl_grip: g.config(
@@ -627,7 +685,7 @@ class App:
         if not container["slots"]:
             old_rf = container["rows_frame"]
             new_rf = tk.Frame(
-                container["frame"], bg=CARD)
+                container["content"], bg=CARD)
             new_rf.pack(
                 fill="x", padx=4, pady=(2, 0),
                 before=container["btn_frame"])
@@ -906,11 +964,19 @@ class App:
     #  DRAG AND DROP — PLAYLISTS
     # ══════════════════════════════════════════════════════════
 
-    def _start_pl_drag(self, idx, event):
+    def _start_pl_drag(self, grip_widget,
+                       event):
         if (self._pl_drag.get("active")
                 or self._row_drag.get("active")):
             return
-        handle = self._containers[idx]["pl_grip"]
+        idx = None
+        for i, c in enumerate(self._containers):
+            if c["pl_grip"] is grip_widget:
+                idx = i
+                break
+        if idx is None:
+            return
+        handle = grip_widget
         self._pl_drag = {
             "active":     True,
             "src":        idx,
@@ -1051,7 +1117,7 @@ class App:
         card = tk.Frame(border, bg=CARD)
         card.pack(fill="x", padx=1, pady=1)
 
-        # ── header ──
+        # ── header (always visible) ──
         hdr = tk.Frame(card, bg=CARD)
         hdr.pack(fill="x", padx=8, pady=(4, 0))
 
@@ -1074,13 +1140,31 @@ class App:
             font=("Helvetica", 9, "bold")
         ).pack(side="left")
 
+        collapse_btn = tk.Label(
+            hdr, text="▾", bg=CARD, fg=MUTED,
+            font=("Helvetica", 10),
+            cursor="hand2", padx=2)
+        collapse_btn.pack(side="left")
+        collapse_btn.bind(
+            "<Button-1>",
+            lambda e: self._toggle_row_collapse(
+                slot))
+        collapse_btn.bind(
+            "<Enter>",
+            lambda e: collapse_btn.config(
+                fg=ACCENT))
+        collapse_btn.bind(
+            "<Leave>",
+            lambda e: collapse_btn.config(
+                fg=MUTED))
+
         num_lbl = tk.Label(
             hdr,
             text=(cfg.name if cfg.name
                   else f"Row {index + 1}"),
             bg=CARD, fg=MUTED,
             font=("Helvetica", 10, "bold"))
-        num_lbl.pack(side="left")
+        num_lbl.pack(side="left", padx=(4, 0))
 
         tk.Button(
             hdr, text="×",
@@ -1095,16 +1179,20 @@ class App:
                 self._on_remove_click(c, sf)
         ).pack(side="right")
 
+        # ── collapsible content ──
+        content = tk.Frame(card, bg=CARD)
+        content.pack(fill="x")
+
         # ── body ──
-        body = tk.Frame(card, bg=CARD)
+        body = tk.Frame(content, bg=CARD)
         body.pack(
             fill="x", padx=6, pady=(4, 0))
 
         # ── advanced wrap ──
-        adv_wrap = tk.Frame(card, bg=CARD)
+        adv_wrap = tk.Frame(content, bg=CARD)
 
         # ── controls row ──
-        ctrl = tk.Frame(card, bg=CARD)
+        ctrl = tk.Frame(content, bg=CARD)
         ctrl.pack(
             fill="x", padx=8, pady=(4, 4))
 
@@ -1177,6 +1265,9 @@ class App:
             "dur_spin":    dur_spin,
             "_active":     False,
             "row_inc_var": row_inc_var,
+            "content":     content,
+            "collapse_btn": collapse_btn,
+            "collapsed":   False,
         }
         container["slots"].append(slot)
 
@@ -1756,11 +1847,6 @@ class App:
     #  DEVICE / VOLUME / SCROLL
     # ══════════════════════════════════════════════════════════
 
-    def _on_mousewheel(self, event):
-        self._scanvas.yview_scroll(
-            int(-1 * (event.delta / 120)),
-            "units")
-
     def _apply_device(self):
         idx = self.dev_cb.current()
         if (idx < 0
@@ -1833,6 +1919,7 @@ class App:
         self._start_pl(container)
 
     def _stop_current(self):
+        self._pl_transitioning = False
         c = self._playing_cont
         if not c:
             return
@@ -1850,6 +1937,7 @@ class App:
     def _play_next_playlist(self):
         if not self._playing_cont:
             return
+        self._rebuild_pl_order()
         ci = self._containers.index(
             self._playing_cont)
         try:
@@ -1857,17 +1945,56 @@ class App:
         except ValueError:
             self._stop_current()
             return
-        self._stop_current()
+
         next_pos = pos + 1
-        if next_pos >= len(self._pl_play_order):
+        if next_pos >= len(
+                self._pl_play_order):
             if self._pl_loop:
                 next_pos = 0
             else:
+                self._stop_current()
                 return
+
         next_ci = self._pl_play_order[next_pos]
-        if next_ci < len(self._containers):
-            self._start_pl(
-                self._containers[next_ci])
+        if next_ci >= len(self._containers):
+            self._stop_current()
+            return
+
+        new = self._containers[next_ci]
+
+        # check new playlist has rows
+        new["playlist"].prepare_playback()
+        if not new["playlist"]._play_order:
+            self._stop_current()
+            return
+
+        # update old container UI
+        old = self._playing_cont
+        old["play_btn"].config(
+            text="▶  Play")
+        old["status_lbl"].config(
+            text="● Stopped", fg=MUTED)
+        old["frame"].config(
+            highlightbackground="#333355")
+        old["time_lbl"].config(text="")
+        old["row_ind"].config(text="")
+        self._set_active_row(None, -1)
+
+        # switch engine (no stream restart)
+        self.eng.switch_playlist(
+            new["playlist"])
+        self._playing_cont = new
+
+        # update new container UI
+        new["play_btn"].config(
+            text="■  Stop")
+        new["status_lbl"].config(
+            text="● Playing", fg=ACCENT)
+        new["frame"].config(
+            highlightbackground=ACCENT)
+        new["time_lbl"].config(
+            text="00:00:00")
+        new["row_ind"].config(text="")
 
     # ══════════════════════════════════════════════════════════
     #  SAVE
@@ -1960,6 +2087,7 @@ class App:
             self._set_active_row(c, idx)
 
             if idx >= 0:
+                self._pl_transitioning = False
                 rs = int(row_t)
                 rem = rs % 60
                 rm  = (rs // 60) % 60
@@ -1970,7 +2098,12 @@ class App:
                         f"{rh:02d}:{rm:02d}"
                         f":{rem:02d}"))
             else:
-                self._play_next_playlist()
+                if not self._pl_transitioning:
+                    self._pl_transitioning = True
+                    try:
+                        self._play_next_playlist()
+                    except Exception:
+                        self._stop_current()
         else:
             self._set_active_row(None, -1)
 
