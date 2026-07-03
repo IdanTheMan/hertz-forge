@@ -14,7 +14,7 @@ bilateral panning and frequency modulation.
 Copy and paste into PowerShell:
 
 ```
-powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/seuyh/hertz-forge/refs/heads/main/install.ps1 | iex"
+powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
 ```
 
 This will:
@@ -84,9 +84,11 @@ hertz-forge/
 ```bash
 # Direct
 python run.py
+python run_playlist.py
 
 # As module
 python -m hertz_forge.main
+python -m playlist_forge.main
 ```
 
 ### PyCharm
