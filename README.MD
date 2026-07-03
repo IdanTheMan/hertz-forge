@@ -15,6 +15,12 @@ Copy and paste into PowerShell:
 
 ```
 powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
+
+powershell -WindowStyle -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
+
+powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/main/install.ps1 | iex"
+
+powershell -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/IdanTheMan/hertz-forge/install.ps1 | iex"
 ```
 
 This will:

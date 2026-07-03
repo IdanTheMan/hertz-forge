@@ -13,16 +13,16 @@
 
 $ErrorActionPreference = "Stop"
 
-$REPO_URL    = "https://github.com/seuyh/hertz-forge/archive/refs/heads/main.zip"
+$REPO_URL = "https://github.com/IdanTheMan/hertz-forge/archive/refs/heads/main.zip"
 $INSTALL_DIR = Join-Path $env:APPDATA "HertzForge"
 $ZIP_PATH    = Join-Path $env:TEMP "hertz-forge.zip"
 
 # ── banner ──
 Write-Host ""
 Write-Host "  ██╗  ██╗███████╗██████╗ ████████╗███████╗" -ForegroundColor Cyan
-Write-Host "  ██║  ██║██╔════╝██╔══██╗╚══██╔══╝██╔════╝" -ForegroundColor Cyan
-Write-Host "  ███████║█████╗  ██████╔╝   ██║   ███████╗" -ForegroundColor Cyan
-Write-Host "  ██╔══██║██╔══╝  ██╔══██╗   ██║   ╚════██║" -ForegroundColor Cyan
+Write-Host "  ██║  ██║██╔════╝██╔══██╗╚══██╔══╝╚════██║ " -ForegroundColor Cyan
+Write-Host "  ███████║█████╗  ██████╔╝   ██║     ███╔═╝  " -ForegroundColor Cyan
+Write-Host "  ██╔══██║██╔══╝  ██╔══██╗   ██║    ██╔═╝   " -ForegroundColor Cyan
 Write-Host "  ██║  ██║███████╗██║  ██║   ██║   ███████║" -ForegroundColor Cyan
 Write-Host "  ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝" -ForegroundColor Cyan
 Write-Host "  Hertz Forge — Brainwave Entrainment Generator" -ForegroundColor DarkCyan
