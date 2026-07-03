@@ -10,7 +10,7 @@
 #  Run with:
 #  powershell -WindowStyle Hidden -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/seuyh/hertz-forge/refs/heads/main/install.ps1 | iex"
 # ═══════════════════════════════════════════════════════════════
-@
+
 $ErrorActionPreference = "Stop"
 
 $REPO_URL    = "https://github.com/IdanTheMan/hertz-forge/archive/refs/heads/main.zip"
