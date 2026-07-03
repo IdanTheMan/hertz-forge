@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════
-#  GUI — collapsible playlists & rows, drag grips, dynamic lookup
+#  GUI — collapsible playlists & rows, drag grips, transitions
 # ═══════════════════════════════════════════════════════════════
 
 import os
@@ -58,8 +58,12 @@ class App:
         self._row_drag = {"active": False}
         self._pl_drag  = {"active": False}
 
+        self._pl_transitioning = False
+        self._pending_pl = None
+
         self.root = tk.Tk()
-        self.root.title("Hertz Forge — Playlists")
+        self.root.title(
+            "Hertz Forge — Playlists")
         self.root.geometry("700x720")
         self.root.minsize(620, 360)
         self.root.configure(bg=BG)
@@ -69,8 +73,6 @@ class App:
         self._apply_device()
         self._add_playlist("Playlist 1")
         self._tick()
-
-        self._pl_transitioning = False
 
     # ── style ─────────────────────────────────────────────────
 
@@ -96,7 +98,8 @@ class App:
             fieldbackground=SURFACE,
             troughcolor=SURFACE2, borderwidth=0)
         s.configure(
-            "TLabel", background=BG, foreground=FG,
+            "TLabel", background=BG,
+            foreground=FG,
             font=("Helvetica", 10))
         s.configure(
             "TButton",
@@ -117,7 +120,8 @@ class App:
             background=SURFACE,
             foreground=FG, arrowcolor=ACCENT,
             bordercolor="#3a3a5e",
-            darkcolor=SURFACE, lightcolor=SURFACE,
+            darkcolor=SURFACE,
+            lightcolor=SURFACE,
             selectbackground=ACCENT2,
             selectforeground=FG,
             font=("Helvetica", 10))
@@ -127,8 +131,10 @@ class App:
                    ("active", SURFACE2),
                    ("!disabled", SURFACE)],
                foreground=[
-                   ("readonly", FG), ("active", FG),
-                   ("!disabled", FG), ("focus", FG)],
+                   ("readonly", FG),
+                   ("active", FG),
+                   ("!disabled", FG),
+                   ("focus", FG)],
                background=[
                    ("readonly", SURFACE),
                    ("active", SURFACE2)],
@@ -144,7 +150,8 @@ class App:
             background=SURFACE2,
             troughcolor=BG, bordercolor=BG,
             arrowcolor=MUTED,
-            darkcolor=SURFACE, lightcolor=SURFACE)
+            darkcolor=SURFACE,
+            lightcolor=SURFACE)
         s.map("Vertical.TScrollbar",
                background=[
                    ("active", ACCENT2),
@@ -166,9 +173,11 @@ class App:
             anchor="w").pack(
                 fill="x", padx=8, pady=(8, 2))
 
-    def _lbl(self, parent, text, row=0, bg=CARD):
+    def _lbl(self, parent, text, row=0,
+             bg=CARD):
         tk.Label(
-            parent, text=text, bg=bg, fg="#8888aa",
+            parent, text=text, bg=bg,
+            fg="#8888aa",
             font=("Helvetica", 8, "bold"),
             anchor="w").grid(
                 row=row, column=0,
@@ -185,7 +194,8 @@ class App:
 
     def _on_inner_configure(self, _event):
         self._scanvas.configure(
-            scrollregion=self._scanvas.bbox("all"))
+            scrollregion=self._scanvas.bbox(
+                "all"))
 
     def _on_canvas_resize(self, event):
         self._scanvas.itemconfig(
@@ -194,7 +204,8 @@ class App:
     def _refresh_scroll(self):
         self.root.update_idletasks()
         self._scanvas.configure(
-            scrollregion=self._scanvas.bbox("all"))
+            scrollregion=self._scanvas.bbox(
+                "all"))
 
     def _on_mousewheel(self, event):
         self._scanvas.yview_scroll(
@@ -211,10 +222,12 @@ class App:
             top, text="Hertz Forge",
             bg=BG, fg=ACCENT,
             font=("Helvetica", 18, "bold")
-        ).pack(anchor="w", padx=12, pady=(10, 0))
+        ).pack(
+            anchor="w", padx=12, pady=(10, 0))
         tk.Label(
             top,
-            text="Playlist Mode — Sequential Brainwaves",
+            text="Playlist Mode "
+                 "— Sequential Brainwaves",
             bg=BG, fg=MUTED,
             font=("Helvetica", 9)
         ).pack(anchor="w", padx=12)
@@ -249,7 +262,8 @@ class App:
         vf = tk.Frame(top, bg=BG)
         vf.pack(fill="x", padx=8, pady=2)
         tk.Label(
-            vf, text="Level", bg=BG, fg="#8888aa",
+            vf, text="Level", bg=BG,
+            fg="#8888aa",
             font=("Helvetica", 10), width=10,
             anchor="w").pack(side="left")
         self._vol_var = tk.DoubleVar(value=50)
@@ -276,28 +290,35 @@ class App:
             bottom, orient="vertical")
         self._sbar.pack(side="right", fill="y")
         self._scanvas = tk.Canvas(
-            bottom, bg=BG, highlightthickness=0,
+            bottom, bg=BG,
+            highlightthickness=0,
             yscrollcommand=self._sbar.set)
         self._scanvas.pack(
-            side="left", fill="both", expand=True)
+            side="left", fill="both",
+            expand=True)
         self._sbar.config(
             command=self._scanvas.yview)
 
-        self._inner = tk.Frame(self._scanvas, bg=BG)
+        self._inner = tk.Frame(
+            self._scanvas, bg=BG)
         self._cw = self._scanvas.create_window(
-            (0, 0), window=self._inner, anchor="nw")
+            (0, 0), window=self._inner,
+            anchor="nw")
 
         self._inner.bind(
             "<Configure>",
             self._on_inner_configure)
         self._scanvas.bind(
-            "<Configure>", self._on_canvas_resize)
+            "<Configure>",
+            self._on_canvas_resize)
         self._scanvas.bind_all(
-            "<MouseWheel>", self._on_mousewheel)
+            "<MouseWheel>",
+            self._on_mousewheel)
 
         # ── PLAYLISTS header ──
         pl_hdr = tk.Frame(self._inner, bg=BG)
-        pl_hdr.pack(fill="x", padx=8, pady=(8, 2))
+        pl_hdr.pack(
+            fill="x", padx=8, pady=(8, 2))
         tk.Label(
             pl_hdr, text="PLAYLISTS",
             bg=BG, fg="#6666a0",
@@ -437,7 +458,8 @@ class App:
         frame.pack(
             fill="x", padx=4, pady=6, ipady=4)
 
-        # ── line 1: grip + include + collapse + name + del ──
+        # ── line 1: grip + include + collapse
+        #    + name + del ──
         h1 = tk.Frame(frame, bg=CARD)
         h1.pack(fill="x", padx=8, pady=(6, 0))
 
@@ -467,8 +489,9 @@ class App:
         collapse_btn.pack(side="left")
         collapse_btn.bind(
             "<Button-1>",
-            lambda e: self._toggle_pl_collapse(
-                container))
+            lambda e:
+                self._toggle_pl_collapse(
+                    container))
         collapse_btn.bind(
             "<Enter>",
             lambda e: collapse_btn.config(
@@ -701,7 +724,8 @@ class App:
                 container["slots"]):
             cfg = slot["config"]
             cfg.name = f"Row {i + 1}"
-            slot["num_lbl"].config(text=cfg.name)
+            slot["num_lbl"].config(
+                text=cfg.name)
 
     def _update_pl_dur(self, container):
         total = (
@@ -857,7 +881,8 @@ class App:
             return
 
         if not d["moved"]:
-            if abs(event.y_root - d["start_y"]) < 6:
+            if abs(event.y_root
+                   - d["start_y"]) < 6:
                 return
             d["moved"] = True
             d["indicator"] = tk.Frame(
@@ -888,8 +913,9 @@ class App:
 
         if d["moved"]:
             src = d["src"]
-            target = self._get_row_drop_target(
-                d["container"], event)
+            target = (
+                self._get_row_drop_target(
+                    d["container"], event))
 
             if d["indicator"]:
                 try:
@@ -914,8 +940,10 @@ class App:
                              event):
         for i, slot in enumerate(
                 container["slots"]):
-            wy = slot["border"].winfo_rooty()
-            wh = slot["border"].winfo_height()
+            wy = (slot["border"]
+                  .winfo_rooty())
+            wh = (slot["border"]
+                  .winfo_height())
             if event.y_root < wy + wh / 2:
                 return i
         return len(container["slots"])
@@ -1000,7 +1028,8 @@ class App:
             return
 
         if not d["moved"]:
-            if abs(event.y_root - d["start_y"]) < 6:
+            if abs(event.y_root
+                   - d["start_y"]) < 6:
                 return
             d["moved"] = True
             d["indicator"] = tk.Frame(
@@ -1031,8 +1060,8 @@ class App:
 
         if d["moved"]:
             src = d["src"]
-            target = self._get_pl_drop_target(
-                event)
+            target = (
+                self._get_pl_drop_target(event))
 
             if d["indicator"]:
                 try:
@@ -1147,8 +1176,8 @@ class App:
         collapse_btn.pack(side="left")
         collapse_btn.bind(
             "<Button-1>",
-            lambda e: self._toggle_row_collapse(
-                slot))
+            lambda e:
+                self._toggle_row_collapse(slot))
         collapse_btn.bind(
             "<Enter>",
             lambda e: collapse_btn.config(
@@ -1231,7 +1260,8 @@ class App:
 
         dur_spin = SpinEntry(
             ctrl, width=5, from_=0,
-            to=36000, step=5, fmt="{:.0f}",
+            to=36000, step=5,
+            fmt="{:.0f}",
             initial=str(int(cfg.duration)),
             suffix="s", bg=CARD,
             callback=on_dur)
@@ -1253,21 +1283,21 @@ class App:
         adv_btn.pack(side="right")
 
         slot = {
-            "border":      border,
-            "frame":       card,
-            "body":        body,
-            "adv_wrap":    adv_wrap,
-            "config":      cfg,
-            "num_lbl":     num_lbl,
-            "grip":        grip,
-            "sync_var":    sync_var,
-            "bin_var":     bin_var,
-            "dur_spin":    dur_spin,
-            "_active":     False,
-            "row_inc_var": row_inc_var,
-            "content":     content,
+            "border":       border,
+            "frame":        card,
+            "body":         body,
+            "adv_wrap":     adv_wrap,
+            "config":       cfg,
+            "num_lbl":      num_lbl,
+            "grip":         grip,
+            "sync_var":     sync_var,
+            "bin_var":      bin_var,
+            "dur_spin":     dur_spin,
+            "_active":      False,
+            "row_inc_var":  row_inc_var,
+            "content":      content,
             "collapse_btn": collapse_btn,
-            "collapsed":   False,
+            "collapsed":    False,
         }
         container["slots"].append(slot)
 
@@ -1448,13 +1478,15 @@ class App:
                 sticky="nsew", padx=(4, 0))
 
         tk.Label(
-            lf, text="L", bg=CARD, fg="#8888aa",
+            lf, text="L", bg=CARD,
+            fg="#8888aa",
             font=("Helvetica", 9, "bold"),
             anchor="w").pack(fill="x")
         self._build_side(lf, slot, "left")
 
         tk.Label(
-            rf, text="R", bg=CARD, fg="#8888aa",
+            rf, text="R", bg=CARD,
+            fg="#8888aa",
             font=("Helvetica", 9, "bold"),
             anchor="w").pack(fill="x")
         self._build_side(rf, slot, "right")
@@ -1573,7 +1605,8 @@ class App:
             r, text="·", bg=CARD, fg=MUTED
         ).grid(row=0, column=3, padx=6)
         tk.Label(
-            r, text="BW", bg=CARD, fg="#8888aa",
+            r, text="BW", bg=CARD,
+            fg="#8888aa",
             font=("Helvetica", 8, "bold")
         ).grid(row=0, column=4)
         SpinEntry(
@@ -1602,7 +1635,8 @@ class App:
                 sticky="nsew", padx=(4, 0))
 
         tk.Label(
-            lf, text="L", bg=CARD, fg="#8888aa",
+            lf, text="L", bg=CARD,
+            fg="#8888aa",
             font=("Helvetica", 9, "bold"),
             anchor="w").pack(fill="x")
         r1 = self._label_row(lf, "Carrier")
@@ -1613,7 +1647,8 @@ class App:
             row=0, column=1, sticky="w")
 
         tk.Label(
-            rf, text="R", bg=CARD, fg="#8888aa",
+            rf, text="R", bg=CARD,
+            fg="#8888aa",
             font=("Helvetica", 9, "bold"),
             anchor="w").pack(fill="x")
         r3 = self._label_row(rf, "Carrier")
@@ -1731,7 +1766,8 @@ class App:
             r, text="·", bg=CARD, fg=MUTED
         ).grid(row=0, column=2, padx=4)
 
-        fm_var = tk.BooleanVar(value=ch.fm_on)
+        fm_var = tk.BooleanVar(
+            value=ch.fm_on)
         slot[f"{side}_fm_var"] = fm_var
 
         def on_fm(s=side):
@@ -1900,6 +1936,7 @@ class App:
                 "Error", str(e))
             return
         self._playing_cont = container
+        self._pl_transitioning = False
         container["play_btn"].config(
             text="■  Stop")
         container["status_lbl"].config(
@@ -1920,6 +1957,7 @@ class App:
 
     def _stop_current(self):
         self._pl_transitioning = False
+        self._pending_pl = None
         c = self._playing_cont
         if not c:
             return
@@ -1934,7 +1972,13 @@ class App:
         self._playing_cont = None
         self._set_active_row(None, -1)
 
-    def _play_next_playlist(self):
+    # ══════════════════════════════════════════════════════════
+    #  PLAYLIST TRANSITIONS
+    # ══════════════════════════════════════════════════════════
+
+    def _do_pl_transition(self):
+        """Stop current playlist and schedule
+        the next one."""
         if not self._playing_cont:
             return
         self._rebuild_pl_order()
@@ -1961,15 +2005,15 @@ class App:
             return
 
         new = self._containers[next_ci]
-
-        # check new playlist has rows
         new["playlist"].prepare_playback()
         if not new["playlist"]._play_order:
             self._stop_current()
             return
 
-        # update old container UI
+        # stash target and stop
+        self._pending_pl = new
         old = self._playing_cont
+        self.eng.stop()
         old["play_btn"].config(
             text="▶  Play")
         old["status_lbl"].config(
@@ -1978,23 +2022,23 @@ class App:
             highlightbackground="#333355")
         old["time_lbl"].config(text="")
         old["row_ind"].config(text="")
+        self._playing_cont = None
         self._set_active_row(None, -1)
 
-        # switch engine (no stream restart)
-        self.eng.switch_playlist(
-            new["playlist"])
-        self._playing_cont = new
+        # start next after stream fully
+        # releases
+        self.root.after(
+            100, self._start_pending_pl)
 
-        # update new container UI
-        new["play_btn"].config(
-            text="■  Stop")
-        new["status_lbl"].config(
-            text="● Playing", fg=ACCENT)
-        new["frame"].config(
-            highlightbackground=ACCENT)
-        new["time_lbl"].config(
-            text="00:00:00")
-        new["row_ind"].config(text="")
+    def _start_pending_pl(self):
+        """Start the stashed next playlist."""
+        new = getattr(
+            self, '_pending_pl', None)
+        self._pending_pl = None
+        if new is not None:
+            self._start_pl(new)
+        else:
+            self._pl_transitioning = False
 
     # ══════════════════════════════════════════════════════════
     #  SAVE
@@ -2035,8 +2079,7 @@ class App:
         save_eng.vol = self.eng.vol
 
         def go():
-            save_eng.save_wav(
-                path, duration=duration)
+            save_eng.save_wav(path)
             mb = (os.path.getsize(path)
                   / (1024 * 1024))
             def done():
@@ -2100,10 +2143,7 @@ class App:
             else:
                 if not self._pl_transitioning:
                     self._pl_transitioning = True
-                    try:
-                        self._play_next_playlist()
-                    except Exception:
-                        self._stop_current()
+                    self._do_pl_transition()
         else:
             self._set_active_row(None, -1)
 

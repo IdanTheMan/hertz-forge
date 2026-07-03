@@ -119,8 +119,10 @@ class ChannelConfig:
         else:
             sig = car
 
-        left  = np.zeros(len(t), dtype=np.float32)
-        right = np.zeros(len(t), dtype=np.float32)
+        left  = np.zeros(len(t),
+                         dtype=np.float32)
+        right = np.zeros(len(t),
+                         dtype=np.float32)
 
         if bi > 0:
             ps = 1 + bi * 9
@@ -266,6 +268,11 @@ class PlaylistEngine:
             d for _, d in playable if d > 0)
 
         if not looping:
+            # ← THIS IS THE FIX:
+            # when not looping and time exceeds
+            # total, playlist is done
+            if total > 0 and t >= total:
+                return -1, 0.0
             return self._find_row(playable, t)
 
         if total <= 0:
@@ -275,7 +282,8 @@ class PlaylistEngine:
         pos = t - cycle_num * total
 
         if (shuffling
-                and cycle_num != self._last_cycle):
+                and cycle_num != self._last_cycle
+        ):
             self._last_cycle = cycle_num
             self.playlist._rebuild_order()
             order = self.playlist._play_order
