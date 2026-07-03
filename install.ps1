@@ -88,12 +88,14 @@ Write-Host "[5/5] Creating desktop shortcuts..." -ForegroundColor Yellow
 $desktopPath = [Environment]::GetFolderPath("Desktop")
 $pythonPath = (Get-Command $pythonCmd -ErrorAction SilentlyContinue).Source
 if (-not $pythonPath) { $pythonPath = $pythonCmd }
+$pythonwPath = Join-Path (Split-Path $pythonPath) "pythonw.exe"
+if (-not (Test-Path $pythonwPath)) { $pythonwPath = $pythonPath }
 
 try {
     $ws = New-Object -ComObject WScript.Shell
 
     $shortcut1 = $ws.CreateShortcut((Join-Path $desktopPath "Hertz Forge.lnk"))
-    $shortcut1.TargetPath = $pythonPath
+    $shortcut1.TargetPath = $pythonwPath
     $shortcut1.Arguments = "`"$INSTALL_DIR\run.py`""
     $shortcut1.WorkingDirectory = $INSTALL_DIR
     $shortcut1.Description = "Hertz Forge - Brainwave Entrainment"
@@ -101,7 +103,7 @@ try {
     Write-Host "  Created shortcut: Hertz Forge" -ForegroundColor Green
 
     $shortcut2 = $ws.CreateShortcut((Join-Path $desktopPath "Hertz Forge Playlist.lnk"))
-    $shortcut2.TargetPath = $pythonPath
+    $shortcut2.TargetPath = $pythonwPath
     $shortcut2.Arguments = "`"$INSTALL_DIR\run_playlist.py`""
     $shortcut2.WorkingDirectory = $INSTALL_DIR
     $shortcut2.Description = "Hertz Forge - Playlist Mode"
