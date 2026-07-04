@@ -62,23 +62,33 @@ Dependencies are listed in `requirements.txt` and installed automatically.
 
 ```
 hertz-forge/
-├── README.md              # This file
-├── requirements.txt       # Python dependencies
-├── install.ps1            # PowerShell one-click installer
-├── run.py                 # Entry point (direct execution)
+├── README.md
+├── requirements.txt
+├── install.ps1
+├── run.py
 ├── run_playlist.py
-└── hertz_forge/           # Main package
-    ├── __init__.py        # Package marker
-    ├── constants.py       # Colours, band labels, presets
-    ├── audio.py           # Audio engine & device discovery
-    ├── widgets.py         # SpinEntry custom widget
-    ├── gui.py             # Full GUI application
-    └── main.py            # Module entry point (python -m)
+├── hertz_forge/
+│   ├── __init__.py
+│   ├── constants.py
+│   ├── audio.py
+│   ├── widgets.py
+│   ├── gui.py
+│   └── main.py
 └── playlist_forge/
     ├── __init__.py
+    ├── config.py              ← NEW — save/load/naming
     ├── engine.py
-    ├── gui.py
-    └── main.py
+    ├── main.py
+    ├── gui/                   ← was gui.py, now a package
+    │   ├── __init__.py        ← exports App (drop-in replacement)
+    │   ├── app.py             ← App class + __init__, run, _quit
+    │   ├── style.py           ← StyleMixin
+    │   ├── helpers.py         ← HelperMixin (labels, scroll, dividers)
+    │   ├── build.py           ← BuildMixin (_build layout)
+    │   ├── playlist_ui.py     ← PlaylistMixin (containers, rows, collapse)
+    │   ├── row_ui.py          ← RowMixin (slot creation, body, advanced)
+    │   ├── interactions.py    ← InteractionMixin (drag-drop, config save/load)
+    │   └── transport.py       ← TransportMixin (play, stop, transitions, tick, save WAV)
 ```
 
 ## Usage
