@@ -86,7 +86,6 @@ class TransportMixin:
 
     def _stop_current(self):
         self._pl_transitioning = False
-        self._pending_pl = None
         c = self._playing_cont
         if not c:
             return
@@ -101,11 +100,11 @@ class TransportMixin:
         self._playing_cont = None
         self._set_active_row(None, -1)
 
-    # ── playlist transitions ──
+    # ── playlist transitions (seamless) ──
 
     def _do_pl_transition(self):
-        """Stop current playlist and schedule
-        the next one."""
+        """Switch to the next playlist without
+        restarting the audio stream."""
         if not self._playing_cont:
             return
         self._rebuild_pl_order()
@@ -137,9 +136,8 @@ class TransportMixin:
             self._stop_current()
             return
 
-        self._pending_pl = new
+        # ── UI: deactivate old ──
         old = self._playing_cont
-        self.eng.stop()
         old["play_btn"].config(
             text="▶  Play")
         old["status_lbl"].config(
@@ -148,21 +146,25 @@ class TransportMixin:
             highlightbackground="#333355")
         old["time_lbl"].config(text="")
         old["row_ind"].config(text="")
-        self._playing_cont = None
+
+        # ── seamless switch — stream keeps
+        #    running, only playlist data swaps
+        self.eng.switch_playlist(
+            new["playlist"])
+
+        # ── UI: activate new ──
+        self._playing_cont = new
+        self._pl_transitioning = False
+        new["play_btn"].config(
+            text="■  Stop")
+        new["status_lbl"].config(
+            text="● Playing", fg=ACCENT)
+        new["frame"].config(
+            highlightbackground=ACCENT)
+        new["time_lbl"].config(
+            text="00:00:00")
+        new["row_ind"].config(text="")
         self._set_active_row(None, -1)
-
-        self.root.after(
-            100, self._start_pending_pl)
-
-    def _start_pending_pl(self):
-        """Start the stashed next playlist."""
-        new = getattr(
-            self, '_pending_pl', None)
-        self._pending_pl = None
-        if new is not None:
-            self._start_pl(new)
-        else:
-            self._pl_transitioning = False
 
     # ── save ──
 

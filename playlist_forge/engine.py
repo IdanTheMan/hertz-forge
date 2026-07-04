@@ -412,10 +412,11 @@ class PlaylistEngine:
             wf.setsampwidth(2)
             wf.setframerate(self.SR)
             wf.writeframes(pcm.tobytes())
-
+            
     def switch_playlist(self, playlist):
         """Switch to a new playlist without
         restarting the audio stream."""
         self.playlist = playlist
         playlist.prepare_playback()
         self._t0 = _time.time()
+        self._last_cycle = 0
