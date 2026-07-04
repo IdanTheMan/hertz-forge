@@ -2,9 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from hertz_forge.constants import (
-    WAVES, BG, SURFACE, SURFACE2,
-    ACCENT, ACCENT2, MUTED, FG,
-    DIVIDER, CARD, SLIDER_LEN)
+    BG, SURFACE2, ACCENT, MUTED, SLIDER_LEN)
 from hertz_forge.widgets import SpinEntry
 
 
@@ -29,10 +27,15 @@ class BuildMixin:
         ).pack(anchor="w", padx=12)
         self._sep(top)
 
-        # ── OUTPUT DEVICE ──
-        self._section(top, "OUTPUT DEVICE")
-        df = tk.Frame(top, bg=BG)
-        df.pack(fill="x", padx=8, pady=2)
+        # ── Output device ──
+        dev_row = tk.Frame(top, bg=BG)
+        dev_row.pack(fill="x", padx=8, pady=2)
+        tk.Label(
+            dev_row, text="Output", bg=BG,
+            fg="#8888aa",
+            font=("Helvetica", 10),
+            width=8, anchor="w"
+        ).pack(side="left")
         self.device_names = [
             d[0] for d in self.output_devices]
         if not self.device_names:
@@ -40,44 +43,94 @@ class BuildMixin:
         self.device_var = tk.StringVar(
             value=self.device_names[0])
         self.dev_cb = ttk.Combobox(
-            df, textvariable=self.device_var,
+            dev_row, textvariable=self.device_var,
             values=self.device_names,
-            state="readonly", width=34)
+            state="readonly", width=30)
         self.dev_cb.pack(
             side="left", fill="x", expand=True)
         self.dev_cb.bind(
             "<<ComboboxSelected>>",
             lambda _: self._apply_device())
         ttk.Button(
-            df, text="Test Stereo",
+            dev_row, text="Test Stereo",
             style="Test.TButton",
             command=self._test_stereo
         ).pack(side="right", padx=(6, 0))
-        self._sep(top)
 
-        # ── VOLUME ──
-        self._section(top, "VOLUME")
-        vf = tk.Frame(top, bg=BG)
-        vf.pack(fill="x", padx=8, pady=2)
+        # ── Volume ──
+        vol_row = tk.Frame(top, bg=BG)
+        vol_row.pack(fill="x", padx=8, pady=2)
         tk.Label(
-            vf, text="Level", bg=BG,
+            vol_row, text="Volume", bg=BG,
             fg="#8888aa",
-            font=("Helvetica", 10), width=10,
-            anchor="w").pack(side="left")
+            font=("Helvetica", 10),
+            width=8, anchor="w"
+        ).pack(side="left")
         self._vol_var = tk.DoubleVar(value=50)
         ttk.Scale(
-            vf, from_=0, to=100,
+            vol_row, from_=0, to=100,
             length=SLIDER_LEN,
             variable=self._vol_var
         ).pack(side="left", padx=(0, 6))
         self.vol_spin = SpinEntry(
-            vf, width=6, from_=0, to=100,
+            vol_row, width=6, from_=0, to=100,
             step=1, fmt="{:.0f}",
             initial="50", suffix="%",
             callback=self._on_vol, bg=BG)
         self.vol_spin.pack(side="left")
         self._vol_var.trace_add(
             "write", self._on_vol_var)
+
+        # ── Playlists controls ──
+        pl_row = tk.Frame(top, bg=BG)
+        pl_row.pack(fill="x", padx=8, pady=(4, 2))
+        tk.Label(
+            pl_row, text="Playlists", bg=BG,
+            fg="#6666a0",
+            font=("Helvetica", 9, "bold"),
+            width=8, anchor="w"
+        ).pack(side="left")
+
+        self._pl_shuffle_var = tk.BooleanVar(
+            value=False)
+        tk.Checkbutton(
+            pl_row,
+            variable=self._pl_shuffle_var,
+            text="shuffle",
+            bg=BG, fg=ACCENT,
+            selectcolor=SURFACE2,
+            activebackground=BG,
+            activeforeground=ACCENT,
+            font=("Helvetica", 9, "bold"),
+            command=self._toggle_pl_shuffle
+        ).pack(side="left")
+
+        self._pl_loop_var = tk.BooleanVar(
+            value=False)
+        tk.Checkbutton(
+            pl_row,
+            variable=self._pl_loop_var,
+            text="loop",
+            bg=BG, fg=ACCENT,
+            selectcolor=SURFACE2,
+            activebackground=BG,
+            activeforeground=ACCENT,
+            font=("Helvetica", 9, "bold"),
+            command=self._toggle_pl_loop
+        ).pack(side="left", padx=(4, 8))
+
+        tk.Button(
+            pl_row, text="■ All",
+            font=("Helvetica", 9, "bold"),
+            bg=SURFACE2, fg="#cc6666",
+            activebackground="#442222",
+            activeforeground="#cc6666",
+            relief="flat", bd=0,
+            padx=6, pady=2,
+            cursor="hand2",
+            command=self._stop_current
+        ).pack(side="left")
+
         self._sep(top)
 
         # ── scrollable area ──
@@ -113,47 +166,7 @@ class BuildMixin:
             "<MouseWheel>",
             self._on_mousewheel)
 
-        # ── PLAYLISTS header ──
-        pl_hdr = tk.Frame(self._inner, bg=BG)
-        pl_hdr.pack(
-            fill="x", padx=8, pady=(8, 2))
-        tk.Label(
-            pl_hdr, text="PLAYLISTS",
-            bg=BG, fg="#6666a0",
-            font=("Helvetica", 9, "bold"),
-            anchor="w").pack(side="left")
-
-        tk.Frame(pl_hdr, bg=BG).pack(
-            side="left", fill="x", expand=True)
-
-        self._pl_shuffle_var = tk.BooleanVar(
-            value=False)
-        tk.Checkbutton(
-            pl_hdr,
-            variable=self._pl_shuffle_var,
-            text="shuffle",
-            bg=BG, fg=ACCENT,
-            selectcolor=SURFACE2,
-            activebackground=BG,
-            activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold"),
-            command=self._toggle_pl_shuffle
-        ).pack(side="right")
-
-        self._pl_loop_var = tk.BooleanVar(
-            value=False)
-        tk.Checkbutton(
-            pl_hdr,
-            variable=self._pl_loop_var,
-            text="loop",
-            bg=BG, fg=ACCENT,
-            selectcolor=SURFACE2,
-            activebackground=BG,
-            activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold"),
-            command=self._toggle_pl_loop
-        ).pack(side="right", padx=(0, 8))
-
+        # ── playlist frame ──
         self._pl_frame = tk.Frame(
             self._inner, bg=BG)
         self._pl_frame.pack(
@@ -175,8 +188,7 @@ class BuildMixin:
             command=self._load_configs_dialog
         ).pack(side="left", padx=4)
 
-        # ── drop overlay (hidden until a
-        #    file drag enters) ──
+        # ── drop overlay ──
         self._drop_overlay = tk.Frame(
             self.root, bg="#0a0a20",
             highlightthickness=3,
