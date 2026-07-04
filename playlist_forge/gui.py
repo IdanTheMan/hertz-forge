@@ -23,6 +23,14 @@ from hertz_forge.widgets import SpinEntry
 from hertz_forge.audio import (
     get_output_devices, test_device_stereo)
 from .engine import PlaylistEngine, Playlist
+from .config import save_row, load_rows, suggested_filename
+
+try:
+    from tkinterdnd2 import DND_FILES
+    _HAS_DND = True
+except ImportError:
+    _HAS_DND = False
+
 
 _LABEL_PX = 75
 
@@ -61,7 +69,12 @@ class App:
         self._pl_transitioning = False
         self._pending_pl = None
 
-        self.root = tk.Tk()
+        if _HAS_DND:
+            from tkinterdnd2 import TkinterDnD
+            self.root = TkinterDnD.Tk()
+        else:
+            self.root = tk.Tk()
+
         self.root.title(
             "Hertz Forge — Playlists")
         self.root.geometry("700x720")
@@ -70,6 +83,18 @@ class App:
 
         self._style()
         self._build()
+
+        if _HAS_DND:
+            self.root.drop_target_register(DND_FILES)
+            self.root.dnd_bind(
+                "<<DropEnter>>",
+                lambda e: self._show_drop_overlay())
+            self.root.dnd_bind(
+                "<<DropLeave>>",
+                lambda e: self._hide_drop_overlay())
+            self.root.dnd_bind(
+                "<<Drop>>", self._on_drop)
+
         self._apply_device()
         self._add_playlist("Playlist 1")
         self._tick()
@@ -364,11 +389,33 @@ class App:
         btn_f = tk.Frame(self._inner, bg=BG)
         btn_f.pack(
             fill="x", padx=4, pady=(8, 4))
+        _btn_row = tk.Frame(btn_f, bg=BG)
+        _btn_row.pack(anchor="center")
         ttk.Button(
-            btn_f, text="+ Playlist",
+            _btn_row, text="+ Playlist",
             style="Small.TButton",
             command=self._add_playlist
-        ).pack(anchor="center")
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            _btn_row, text="Load Configs…",
+            style="Small.TButton",
+            command=self._load_configs_dialog
+        ).pack(side="left", padx=4)
+
+        # ── drop overlay (hidden until a
+        #    file drag enters) ──
+        self._drop_overlay = tk.Frame(
+            self.root, bg="#0a0a20",
+            highlightthickness=3,
+            highlightbackground=ACCENT)
+        tk.Label(
+            self._drop_overlay,
+            text="↓  Drop .hfc configs here  ↓",
+            bg="#0a0a20", fg=ACCENT,
+            font=("Helvetica", 14, "bold")
+        ).place(relx=0.5, rely=0.5,
+                anchor="center")
+        self._drop_overlay.place_forget()
 
         tk.Frame(
             self._inner, bg=BG, height=20
@@ -548,6 +595,18 @@ class App:
         export_btn.pack(
             side="left", padx=(8, 0))
 
+        load_btn = tk.Button(
+            h2, text="Load…",
+            font=("Helvetica", 9),
+            bg=SURFACE2, fg=MUTED,
+            activebackground=ACCENT2,
+            activeforeground=ACCENT,
+            relief="flat", bd=0,
+            padx=4, pady=2,
+            cursor="hand2")
+        load_btn.pack(
+            side="left", padx=(8, 0))
+
         row_loop_var = tk.BooleanVar(
             value=pl.row_loop)
         tk.Checkbutton(
@@ -633,6 +692,7 @@ class App:
             "pl_grip":      pl_grip,
             "play_btn":     play_btn,
             "export_btn":   export_btn,
+            "load_btn":     load_btn,
             "status_lbl":   status_lbl,
             "total_lbl":    total_lbl,
             "time_lbl":     time_lbl,
@@ -668,6 +728,9 @@ class App:
         export_btn.config(
             command=lambda c=container:
                 self._save_pl(c))
+        load_btn.config(
+            command=lambda c=container:
+                self._load_into_playlist(c))
 
         # wire playlist drag — dynamic lookup
         pl_grip.bind(
@@ -1300,6 +1363,28 @@ class App:
             "collapsed":    False,
         }
         container["slots"].append(slot)
+
+        # save config button
+        save_btn = tk.Button(
+            hdr, text="save",
+            font=("Helvetica", 8),
+            bg=SURFACE2, fg=MUTED,
+            activebackground=ACCENT2,
+            activeforeground=ACCENT,
+            relief="flat", bd=0,
+            padx=4, pady=1,
+            cursor="hand2",
+            command=lambda c=container, s=slot:
+                self._save_row_config(c, s))
+        save_btn.pack(side="left", padx=(8, 0))
+        save_btn.bind(
+            "<Enter>",
+            lambda e, b=save_btn:
+                b.config(fg=ACCENT))
+        save_btn.bind(
+            "<Leave>",
+            lambda e, b=save_btn:
+                b.config(fg=MUTED))
 
         # wire include
         def _toggle_row_include():
@@ -2039,6 +2124,108 @@ class App:
             self._start_pl(new)
         else:
             self._pl_transitioning = False
+
+    # ══════════════════════════════════════════════════════════
+    #  CONFIG SAVE / LOAD
+    # ══════════════════════════════════════════════════════════
+
+    def _save_row_config(self, container, slot):
+        cfg = slot["config"]
+        fname = suggested_filename(cfg)
+        path = filedialog.asksaveasfilename(
+            defaultextension=".hfc",
+            filetypes=[("Hertz Forge Config",
+                        "*.hfc")],
+            initialfile=fname)
+        if not path:
+            return
+        save_row(cfg, path)
+
+    def _load_configs_dialog(self):
+        paths = filedialog.askopenfilenames(
+            filetypes=[("Hertz Forge Config",
+                        "*.hfc")],
+            title="Load Row Configs")
+        if not paths:
+            return
+        self._load_config_files(list(paths))
+
+    def _load_into_playlist(self, container):
+        paths = filedialog.askopenfilenames(
+            filetypes=[("Hertz Forge Config",
+                        "*.hfc")],
+            title="Load Configs into Playlist")
+        if not paths:
+            return
+        self._load_config_files(list(paths),
+                                container)
+
+    def _load_config_files(self, paths,
+                           container=None):
+        rows = load_rows(paths)
+        if not rows:
+            return
+        if container is None:
+            if not self._containers:
+                self._add_playlist("Playlist 1")
+            container = self._containers[-1]
+        pl = container["playlist"]
+        for rc in rows:
+            pl.rows.append(rc)
+            idx = len(pl.rows) - 1
+            rc.name = f"Row {idx + 1}"
+            self._create_slot(container, idx)
+        pl._rebuild_order()
+        self._update_pl_dur(container)
+        self._refresh_scroll()
+
+    # ══════════════════════════════════════════════════════════
+    #  DRAG-AND-DROP FILES (requires tkinterdnd2)
+    # ══════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _parse_dnd_paths(data):
+        """Parse tkinterdnd2 ``<<Drop>>``
+        event data into a list of file paths.
+        Handles Windows brace-quoted paths
+        with spaces."""
+        paths, buf, brace = [], "", False
+        for ch in data:
+            if ch == "{":
+                brace = True
+                buf = ""
+            elif ch == "}":
+                brace = False
+                paths.append(buf)
+                buf = ""
+            elif ch == " " and not brace:
+                if buf:
+                    paths.append(buf)
+                    buf = ""
+            else:
+                buf += ch
+        if buf:
+            paths.append(buf)
+        return [p for p in paths if p]
+
+    def _on_drop(self, event):
+        self._hide_drop_overlay()
+        paths = self._parse_dnd_paths(
+            event.data)
+        hfc = [p for p in paths
+               if p.lower().endswith(".hfc")]
+        if hfc:
+            self._load_config_files(hfc)
+
+    def _show_drop_overlay(self):
+        self._drop_overlay.place(
+            relx=0.5, rely=0.5,
+            anchor="center",
+            relwidth=0.95, relheight=0.95)
+        self._drop_overlay.lift()
+
+    def _hide_drop_overlay(self):
+        self._drop_overlay.place_forget()
 
     # ══════════════════════════════════════════════════════════
     #  SAVE
