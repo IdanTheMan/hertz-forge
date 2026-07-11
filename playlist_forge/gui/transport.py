@@ -53,6 +53,25 @@ class TransportMixin:
         self.eng.vol = v / 100.0
         self._vol_var.set(v)
 
+    # ── play all / stop all ──
+
+    def _play_or_stop_all(self):
+        if self._playing_cont:
+            self._stop_current()
+        else:
+            for c in self._containers:
+                if c.get("included", True):
+                    self._start_pl(c)
+                    return
+
+    def _sync_stop_all_btn(self):
+        if self._playing_cont:
+            self._stop_all_btn.config(
+                text="■ Stop All", fg="#cc6666")
+        else:
+            self._stop_all_btn.config(
+                text="▶ Play All", fg=ACCENT)
+
     # ── transport ──
 
     def _start_pl(self, container):
@@ -66,6 +85,7 @@ class TransportMixin:
             return
         self._playing_cont = container
         self._pl_transitioning = False
+        self._sync_stop_all_btn()
         container["play_btn"].config(
             text="■  Stop")
         container["status_lbl"].config(
@@ -99,6 +119,7 @@ class TransportMixin:
         c["row_ind"].config(text="")
         self._playing_cont = None
         self._set_active_row(None, -1)
+        self._sync_stop_all_btn()
 
     # ── playlist transitions (seamless) ──
 
@@ -155,6 +176,7 @@ class TransportMixin:
         # ── UI: activate new ──
         self._playing_cont = new
         self._pl_transitioning = False
+        self._sync_stop_all_btn()
         new["play_btn"].config(
             text="■  Stop")
         new["status_lbl"].config(
@@ -268,7 +290,6 @@ class TransportMixin:
                 if not self._pl_transitioning:
                     self._pl_transitioning = True
                     self._do_pl_transition()
-        else:
-            self._set_active_row(None, -1)
 
+        self._sync_stop_all_btn()
         self.root.after(80, self._tick)

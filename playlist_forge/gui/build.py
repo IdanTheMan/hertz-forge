@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from hertz_forge.constants import (
-    BG, SURFACE2, ACCENT, MUTED, SLIDER_LEN)
+    BG, SURFACE2, ACCENT, ACCENT2, MUTED, SLIDER_LEN)
 from hertz_forge.widgets import SpinEntry
 
 
@@ -119,17 +119,17 @@ class BuildMixin:
             command=self._toggle_pl_loop
         ).pack(side="left", padx=(4, 8))
 
-        tk.Button(
-            pl_row, text="■ All",
+        self._stop_all_btn = tk.Button(
+            pl_row, text="▶ Play All",
             font=("Helvetica", 9, "bold"),
-            bg=SURFACE2, fg="#cc6666",
-            activebackground="#442222",
-            activeforeground="#cc6666",
+            bg=SURFACE2, fg=ACCENT,
+            activebackground=ACCENT2,
+            activeforeground=ACCENT,
             relief="flat", bd=0,
             padx=6, pady=2,
             cursor="hand2",
-            command=self._stop_current
-        ).pack(side="left")
+            command=self._play_or_stop_all)
+        self._stop_all_btn.pack(side="left")
 
         self._sep(top)
 
