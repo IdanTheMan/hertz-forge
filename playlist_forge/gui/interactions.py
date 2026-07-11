@@ -389,15 +389,8 @@ class InteractionMixin:
         self._playlists.insert(target, pl)
         self._containers.insert(target, cont)
 
-        for c in self._containers:
-            c["frame"].pack_forget()
-        for c in self._containers:
-            c["frame"].pack(
-                fill="x", padx=4, pady=6,
-                ipady=4)
-
         self._rebuild_pl_order()
-        self._refresh_scroll()
+        self._reflow_playlists()
 
     # ══════════════════════════════════════════════════════════
     #  CONFIG SAVE / LOAD (unchanged)

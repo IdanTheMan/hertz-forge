@@ -8,6 +8,8 @@ from hertz_forge.constants import (
     MUTED, FG, DIVIDER, CARD)
 from ..engine import Playlist
 
+_MIN_COL_W = 320
+
 
 class PlaylistMixin:
 
@@ -28,6 +30,43 @@ class PlaylistMixin:
             if c.get("included", True)]
         if self._pl_shuffle:
             random.shuffle(self._pl_play_order)
+
+    # ── reflow (multi-column) ──
+
+    def _schedule_reflow(self):
+        if hasattr(self, '_reflow_id'):
+            try:
+                self.root.after_cancel(
+                    self._reflow_id)
+            except (ValueError, tk.TclError):
+                pass
+        self._reflow_id = self.root.after(
+            20, self._reflow_playlists)
+
+    def _reflow_playlists(self):
+        pf = self._pl_frame
+        pf.update_idletasks()
+        avail = pf.winfo_width()
+        if avail < 10:
+            return
+        cols = max(1, avail // _MIN_COL_W)
+
+        for i, c in enumerate(self._containers):
+            r = i // cols
+            co = i % cols
+            c["frame"].grid(
+                row=r, column=co,
+                sticky="nsew",
+                padx=4, pady=6, ipady=4)
+
+        for col in range(cols):
+            pf.columnconfigure(
+                col, weight=1, uniform="pl")
+        for col in range(cols, 20):
+            pf.columnconfigure(
+                col, weight=0, uniform="")
+
+        self._refresh_scroll()
 
     # ── collapse / expand ──
 
@@ -78,7 +117,7 @@ class PlaylistMixin:
         self._containers.pop(ci)
         container["frame"].destroy()
         self._rebuild_pl_order()
-        self._refresh_scroll()
+        self._reflow_playlists()
 
     def _duplicate_playlist(self, container):
         pl = container["playlist"]
@@ -97,7 +136,7 @@ class PlaylistMixin:
         self._renumber(new_cont)
         self._update_pl_dur(new_cont)
         self._rebuild_pl_order()
-        self._refresh_scroll()
+        self._reflow_playlists()
 
     def _create_pl_container(self, ci):
         pl = self._playlists[ci]
@@ -106,8 +145,7 @@ class PlaylistMixin:
             self._pl_frame, bg=CARD,
             highlightthickness=2,
             highlightbackground="#333355")
-        frame.pack(
-            fill="x", padx=4, pady=6, ipady=4)
+        # grid placement handled by _reflow
 
         # ── line 1 ──
         h1 = tk.Frame(frame, bg=CARD)
@@ -382,6 +420,7 @@ class PlaylistMixin:
                 fg=MUTED))
 
         self._update_pl_dur(container)
+        self._reflow_playlists()
 
     # ── row management ──
 

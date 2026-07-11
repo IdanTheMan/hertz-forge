@@ -181,6 +181,9 @@ class BuildMixin:
             self._inner, bg=BG)
         self._pl_frame.pack(
             fill="x", padx=4, pady=4)
+        self._pl_frame.bind(
+            "<Configure>",
+            lambda e: self._schedule_reflow())
 
         btn_f = tk.Frame(self._inner, bg=BG)
         btn_f.pack(
