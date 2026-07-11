@@ -1,3 +1,4 @@
+import copy
 import tkinter as tk
 from tkinter import ttk
 import random
@@ -79,6 +80,25 @@ class PlaylistMixin:
         self._rebuild_pl_order()
         self._refresh_scroll()
 
+    def _duplicate_playlist(self, container):
+        pl = container["playlist"]
+        new_pl = Playlist(
+            name=f"{pl.name} (copy)")
+        new_pl.row_loop = pl.row_loop
+        new_pl.row_shuffle = pl.row_shuffle
+        new_pl.rows = [
+            copy.deepcopy(r) for r in pl.rows]
+        self._playlists.append(new_pl)
+        ci = len(self._playlists) - 1
+        self._create_pl_container(ci)
+        new_cont = self._containers[ci]
+        for i in range(len(new_pl.rows)):
+            self._create_slot(new_cont, i)
+        self._renumber(new_cont)
+        self._update_pl_dur(new_cont)
+        self._rebuild_pl_order()
+        self._refresh_scroll()
+
     def _create_pl_container(self, ci):
         pl = self._playlists[ci]
 
@@ -137,15 +157,33 @@ class PlaylistMixin:
             font=("Helvetica", 11, "bold"))
         name_lbl.pack(side="left", padx=(4, 0))
 
-        tk.Button(
+        del_btn = tk.Button(
             h1, text="×",
             font=("Helvetica", 11, "bold"),
             bg=CARD, fg="#cc6666",
             activebackground="#442222",
             activeforeground="#cc6666",
             relief="flat", bd=0, padx=6,
-            cursor="hand2"
-        ).pack(side="right")
+            cursor="hand2")
+        del_btn.pack(side="right")
+
+        dup_btn = tk.Button(
+            h1, text="dup",
+            font=("Helvetica", 8),
+            bg=CARD, fg=MUTED,
+            activebackground=CARD,
+            activeforeground=ACCENT,
+            relief="flat", bd=0, padx=4,
+            cursor="hand2")
+        dup_btn.pack(side="right")
+        dup_btn.bind(
+            "<Enter>",
+            lambda e, b=dup_btn:
+                b.config(fg=ACCENT))
+        dup_btn.bind(
+            "<Leave>",
+            lambda e, b=dup_btn:
+                b.config(fg=MUTED))
 
         # ── content ──
         content = tk.Frame(frame, bg=CARD)
@@ -302,9 +340,12 @@ class PlaylistMixin:
 
         include_cb.config(
             command=_toggle_pl_include)
-        h1.winfo_children()[-1].config(
+        del_btn.config(
             command=lambda c=container:
                 self._remove_playlist(c))
+        dup_btn.config(
+            command=lambda c=container:
+                self._duplicate_playlist(c))
         play_btn.config(
             command=lambda c=container:
                 self._toggle_pl(c))
@@ -360,6 +401,16 @@ class PlaylistMixin:
 
         self._renumber(container)
         self._update_pl_dur(container)
+        self._refresh_scroll()
+
+    def _duplicate_row(self, container, slot):
+        cfg = slot["config"]
+        new_cfg = copy.deepcopy(cfg)
+        pl = container["playlist"]
+        idx = pl.rows.index(cfg)
+        pl.rows.insert(idx + 1, new_cfg)
+        new_cfg.name = ""
+        self._rebuild_container_slots(container)
         self._refresh_scroll()
 
     def _renumber(self, container):

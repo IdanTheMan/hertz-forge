@@ -256,7 +256,7 @@ class RowMixin:
         }
         container["slots"].append(slot)
 
-        # ── save config button (after slot
+        # ── save / dup buttons (after slot
         #    exists so lambda can capture it)
         save_btn = tk.Button(
             hdr, text="save",
@@ -277,6 +277,27 @@ class RowMixin:
         save_btn.bind(
             "<Leave>",
             lambda e, b=save_btn:
+                b.config(fg=MUTED))
+
+        dup_btn = tk.Button(
+            hdr, text="dup",
+            font=("Helvetica", 8),
+            bg=SURFACE2, fg=MUTED,
+            activebackground=ACCENT2,
+            activeforeground=ACCENT,
+            relief="flat", bd=0,
+            padx=4, pady=1,
+            cursor="hand2",
+            command=lambda c=container, s=slot:
+                self._duplicate_row(c, s))
+        dup_btn.pack(side="left", padx=(4, 0))
+        dup_btn.bind(
+            "<Enter>",
+            lambda e, b=dup_btn:
+                b.config(fg=ACCENT))
+        dup_btn.bind(
+            "<Leave>",
+            lambda e, b=dup_btn:
                 b.config(fg=MUTED))
 
         # wire include
