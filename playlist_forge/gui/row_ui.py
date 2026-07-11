@@ -119,15 +119,16 @@ class RowMixin:
 
         row_inc_var = tk.BooleanVar(
             value=cfg.included)
-        tk.Checkbutton(
+        row_inc_cb = tk.Checkbutton(
             hdr, variable=row_inc_var,
             text="",
-            bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            bg=CARD,
+            fg=ACCENT if cfg.included else MUTED,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold")
-        ).pack(side="left")
+            font=("Helvetica", 9, "bold"))
+        row_inc_cb.pack(side="left")
 
         collapse_btn = tk.Label(
             hdr, text="▾", bg=CARD, fg=MUTED,
@@ -180,27 +181,27 @@ class RowMixin:
         ctrl.pack(fill="x", padx=8, pady=(4, 4))
 
         sync_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(
+        sync_cb = tk.Checkbutton(
             ctrl, variable=sync_var,
             text="sync",
             bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold")
-        ).pack(side="left")
+            font=("Helvetica", 9, "bold"))
+        sync_cb.pack(side="left")
 
         bin_var = tk.BooleanVar(
             value=cfg.binaural_on)
-        tk.Checkbutton(
+        bin_cb = tk.Checkbutton(
             ctrl, variable=bin_var,
             text="binaural",
-            bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            bg=CARD, fg=MUTED,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold")
-        ).pack(side="left", padx=(8, 0))
+            font=("Helvetica", 9, "bold"))
+        bin_cb.pack(side="left", padx=(8, 0))
 
         tk.Label(
             ctrl, text="Duration",
@@ -305,6 +306,10 @@ class RowMixin:
             cfg.included = row_inc_var.get()
             container["playlist"]._rebuild_order()
             self._update_pl_dur(container)
+            row_inc_cb.config(
+                fg=ACCENT
+                if row_inc_var.get()
+                else MUTED)
 
         row_inc_var.trace_add(
             "write",
@@ -379,6 +384,14 @@ class RowMixin:
                     cfg.binaural_on = False
                     _mirror_l_to_r()
                     _mirror_adv_l_to_r()
+                sync_cb.config(
+                    fg=ACCENT
+                    if sync_var.get()
+                    else MUTED)
+                bin_cb.config(
+                    fg=ACCENT
+                    if bin_var.get()
+                    else MUTED)
                 if _needs_rebuild(old):
                     self._rebuild_body(slot)
                     self._rebuild_adv(slot)
@@ -404,6 +417,14 @@ class RowMixin:
                         cfg.left.bw_freq
                 else:
                     cfg.binaural_on = False
+                sync_cb.config(
+                    fg=ACCENT
+                    if sync_var.get()
+                    else MUTED)
+                bin_cb.config(
+                    fg=ACCENT
+                    if bin_var.get()
+                    else MUTED)
                 if _needs_rebuild(old):
                     self._rebuild_body(slot)
                     self._rebuild_adv(slot)
@@ -765,19 +786,16 @@ class RowMixin:
             value=ch.fm_on)
         slot[f"{side}_fm_var"] = fm_var
 
-        def on_fm(s=side):
-            ch.fm_on = bool(fm_var.get())
-            self._apply_adv_sync(slot, s)
-
-        tk.Checkbutton(
+        fm_cb = tk.Checkbutton(
             r, variable=fm_var, text="FM",
-            bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            bg=CARD,
+            fg=ACCENT if ch.fm_on else MUTED,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold"),
-            command=on_fm
-        ).grid(row=0, column=3, padx=(0, 4))
+            font=("Helvetica", 9, "bold"))
+        fm_cb.grid(
+            row=0, column=3, padx=(0, 4))
 
         base = self._get_effective_carrier(
             slot, side)
@@ -825,6 +843,16 @@ class RowMixin:
 
         slot[f"fm_{fk}_lo"] = lo_spin
         slot[f"fm_{fk}_hi"] = hi_spin
+
+        def on_fm(s=side, cb=fm_cb):
+            ch.fm_on = bool(fm_var.get())
+            self._apply_adv_sync(slot, s)
+            cb.config(
+                fg=ACCENT
+                if fm_var.get()
+                else MUTED)
+
+        fm_cb.config(command=on_fm)
 
     # ── display updaters ──
 

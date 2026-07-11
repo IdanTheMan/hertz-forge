@@ -126,7 +126,7 @@ class PlaylistMixin:
             h1, variable=pl_include_var,
             text="",
             bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
             font=("Helvetica", 9, "bold"))
@@ -230,34 +230,42 @@ class PlaylistMixin:
 
         row_loop_var = tk.BooleanVar(
             value=pl.row_loop)
-        tk.Checkbutton(
+        loop_cb = tk.Checkbutton(
             h2, variable=row_loop_var,
             text="loop",
-            bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            bg=CARD, fg=MUTED,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
             font=("Helvetica", 8, "bold"),
-            command=lambda: setattr(
-                pl, 'row_loop',
-                row_loop_var.get())
-        ).pack(side="left", padx=(10, 0))
+            command=lambda: (
+                setattr(pl, 'row_loop',
+                        row_loop_var.get()),
+                loop_cb.config(
+                    fg=ACCENT
+                    if row_loop_var.get()
+                    else MUTED)))
+        loop_cb.pack(side="left", padx=(10, 0))
 
         row_shuffle_var = tk.BooleanVar(
             value=pl.row_shuffle)
-        tk.Checkbutton(
+        shuffle_cb = tk.Checkbutton(
             h2, variable=row_shuffle_var,
             text="shuffle",
-            bg=CARD, fg=ACCENT,
-            selectcolor=SURFACE2,
+            bg=CARD, fg=MUTED,
+            selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
             font=("Helvetica", 8, "bold"),
             command=lambda: (
                 setattr(pl, 'row_shuffle',
                         row_shuffle_var.get()),
-                pl._rebuild_order())
-        ).pack(side="left", padx=(4, 0))
+                pl._rebuild_order(),
+                shuffle_cb.config(
+                    fg=ACCENT
+                    if row_shuffle_var.get()
+                    else MUTED)))
+        shuffle_cb.pack(side="left", padx=(4, 0))
 
         status_lbl = tk.Label(
             h2, text="● Stopped",
@@ -337,6 +345,10 @@ class PlaylistMixin:
                 pl_include_var.get())
             self._rebuild_pl_order()
             self._update_pl_dur(container)
+            include_cb.config(
+                fg=ACCENT
+                if pl_include_var.get()
+                else MUTED)
 
         include_cb.config(
             command=_toggle_pl_include)
