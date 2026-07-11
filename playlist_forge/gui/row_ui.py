@@ -474,7 +474,7 @@ class RowMixin:
 
         r = self._label_row(parent, "Carrier")
         car_spin = SpinEntry(
-            r, width=5, from_=20, to=2000,
+            r, width=5, from_=0, to=2000,
             step=1, fmt="{:.0f}",
             initial=str(int(ch.carrier)),
             suffix="Hz", bg=CARD,
@@ -559,7 +559,7 @@ class RowMixin:
                 slot, "right")
 
         SpinEntry(
-            r, width=5, from_=20, to=2000,
+            r, width=5, from_=0, to=2000,
             step=1, fmt="{:.0f}",
             initial=str(int(cfg.bi_carrier)),
             suffix="Hz", bg=CARD,
@@ -778,7 +778,7 @@ class RowMixin:
             self._apply_adv_sync(slot, s)
 
         lo_spin = SpinEntry(
-            r2, width=5, from_=20, to=2000,
+            r2, width=5, from_=0, to=2000,
             step=1, fmt="{:.0f}",
             initial=str(int(lo_hz)),
             suffix="Hz", bg=CARD,
@@ -793,7 +793,7 @@ class RowMixin:
         ).grid(row=0, column=2)
 
         hi_spin = SpinEntry(
-            r2, width=5, from_=20, to=2000,
+            r2, width=5, from_=0, to=2000,
             step=1, fmt="{:.0f}",
             initial=str(int(hi_hz)),
             suffix="Hz", bg=CARD,
