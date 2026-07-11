@@ -89,10 +89,20 @@ def generate_row_name(rc):
         elif lc == rc_c:
             parts.append(f"{lc:.0f}cL{lw}R{rw}")
         elif rc.left.wave == rc.right.wave:
-            parts.append(f"L{lc:.0f}R{rc_c:.0f}c{lw}")
+            if rc_c == 0:
+                parts.append(f"L{lc:.0f}c{lw}")
+            elif lc == 0:
+                parts.append(f"R{rc_c:.0f}c{lw}")
+            else:
+                parts.append(f"L{lc:.0f}R{rc_c:.0f}c{lw}")
         else:
-            parts.append(
-                f"L{lc:.0f}c{lw}R{rc_c:.0f}c{rw}")
+            if rc_c == 0:
+                parts.append(f"L{lc:.0f}c{lw}")
+            elif lc == 0:
+                parts.append(f"R{rc_c:.0f}c{rw}")
+            else:
+                parts.append(
+                    f"L{lc:.0f}c{lw}R{rc_c:.0f}c{rw}")
 
     # ── 4. duration ──
     dur = rc.duration
@@ -108,6 +118,10 @@ def generate_row_name(rc):
         if la != 100 or ra != 100:
             if la == ra:
                 parts.append(f"amp{la:.0f}")
+            elif ra == 0:
+                parts.append(f"Lamp{la:.0f}")
+            elif la == 0:
+                parts.append(f"Ramp{ra:.0f}")
             else:
                 parts.append(f"Lamp{la:.0f}Ramp{ra:.0f}")
 
