@@ -908,12 +908,12 @@ class RowMixin:
             lbl_l.config(
                 text=(
                     f"L: "
-                    f"{freq - bw/2:.1f} Hz"))
+                    f"{freq - bw/2:.2f} Hz"))
         if lbl_r:
             lbl_r.config(
                 text=(
                     f"R: "
-                    f"{freq + bw/2:.1f} Hz"))
+                    f"{freq + bw/2:.2f} Hz"))
 
     def _update_fm_display(self, slot, side):
         cfg = slot["config"]
