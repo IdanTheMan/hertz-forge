@@ -257,8 +257,7 @@ class RowMixin:
         }
         container["slots"].append(slot)
 
-        # ── save / dup buttons (after slot
-        #    exists so lambda can capture it)
+        # ── save / dup buttons ──
         save_btn = tk.Button(
             hdr, text="save",
             font=("Helvetica", 8),
@@ -333,22 +332,30 @@ class RowMixin:
         # ── carryover helpers ──
         def _carry_normal_to_bin():
             """Binaural ON ← copy normal
-            values into binaural."""
+            carrier/bw/wave into binaural.
+            Amp is NOT carried — binaural
+            keeps its own bi_left_amp /
+            bi_right_amp."""
             cfg.bi_carrier = (
                 cfg.left.carrier
                 + cfg.right.carrier) / 2
             cfg.bi_bw   = cfg.left.bw_freq
             cfg.bi_wave = cfg.left.wave
             cfg.left.carrier = (
-                cfg.bi_carrier - cfg.bi_bw / 2)
+                cfg.bi_carrier
+                - cfg.bi_bw / 2)
             cfg.right.carrier = (
-                cfg.bi_carrier + cfg.bi_bw / 2)
+                cfg.bi_carrier
+                + cfg.bi_bw / 2)
             cfg.left.bw_freq  = cfg.bi_bw
             cfg.right.bw_freq = cfg.bi_bw
 
         def _carry_bin_to_normal():
             """Binaural OFF ← copy binaural
-            values into normal."""
+            carrier/bw/wave into normal.
+            Amp is NOT carried — normal keeps
+            its own left.amp_val /
+            right.amp_val."""
             cfg.left.carrier  = cfg.bi_carrier
             cfg.right.carrier = cfg.bi_carrier
             cfg.left.bw_freq  = cfg.bi_bw
@@ -648,21 +655,14 @@ class RowMixin:
             lambda *_: setattr(
                 cfg, 'bi_wave', wv.get()))
 
-        tk.Label(
-            r, text="·", bg=CARD, fg=MUTED
-        ).grid(row=0, column=3, padx=6)
-        tk.Label(
-            r, text="BW", bg=CARD,
-            fg="#8888aa",
-            font=("Helvetica", 8, "bold")
-        ).grid(row=0, column=4)
+        r_bw = self._label_row(body, "BW")
         SpinEntry(
-            r, width=5, from_=0, to=100,
+            r_bw, width=5, from_=0, to=100,
             step=0.5, fmt="{:.1f}",
             initial=f"{cfg.bi_bw:.1f}",
             suffix="Hz", bg=CARD,
             callback=on_bw
-        ).grid(row=0, column=5, sticky="w")
+        ).grid(row=0, column=1, sticky="w")
 
         cols = tk.Frame(body, bg=CARD)
         cols.pack(fill="x")
@@ -693,6 +693,19 @@ class RowMixin:
         slot["bi_l_lbl"].grid(
             row=0, column=1, sticky="w")
 
+        r_l_amp = self._label_row(lf, "Amp")
+        l_amp = SpinEntry(
+            r_l_amp, width=5, from_=0, to=100,
+            step=1, fmt="{:.0f}",
+            initial=str(int(
+                cfg.bi_left_amp)),
+            suffix="", bg=CARD,
+            callback=lambda v: setattr(
+                cfg, 'bi_left_amp', v))
+        l_amp.grid(
+            row=0, column=1, sticky="w")
+        slot["left_amp_spin"] = l_amp
+
         tk.Label(
             rf, text="R", bg=CARD,
             fg="#8888aa",
@@ -705,46 +718,20 @@ class RowMixin:
         slot["bi_r_lbl"].grid(
             row=0, column=1, sticky="w")
 
-        self._update_bin_labels(slot)
-
-        r_amp = self._label_row(body, "Amp")
-
-        tk.Label(
-            r_amp, text="L", bg=CARD,
-            fg="#8888aa",
-            font=("Helvetica", 8, "bold")
-        ).grid(row=0, column=1, padx=(0, 2))
-        l_amp = SpinEntry(
-            r_amp, width=5, from_=0, to=100,
-            step=1, fmt="{:.0f}",
-            initial=str(int(cfg.left.amp_val)),
-            suffix="", bg=CARD,
-            callback=lambda v: setattr(
-                cfg.left, 'amp_val', v))
-        l_amp.grid(
-            row=0, column=2, sticky="w",
-            padx=(0, 2))
-        slot["left_amp_spin"] = l_amp
-
-        tk.Label(
-            r_amp, text="·", bg=CARD, fg=MUTED
-        ).grid(row=0, column=3, padx=6)
-
-        tk.Label(
-            r_amp, text="R", bg=CARD,
-            fg="#8888aa",
-            font=("Helvetica", 8, "bold")
-        ).grid(row=0, column=4, padx=(0, 2))
+        r_r_amp = self._label_row(rf, "Amp")
         r_amp_spin = SpinEntry(
-            r_amp, width=5, from_=0, to=100,
+            r_r_amp, width=5, from_=0, to=100,
             step=1, fmt="{:.0f}",
-            initial=str(int(cfg.right.amp_val)),
+            initial=str(int(
+                cfg.bi_right_amp)),
             suffix="", bg=CARD,
             callback=lambda v: setattr(
-                cfg.right, 'amp_val', v))
+                cfg, 'bi_right_amp', v))
         r_amp_spin.grid(
-            row=0, column=5, sticky="w")
+            row=0, column=1, sticky="w")
         slot["right_amp_spin"] = r_amp_spin
+
+        self._update_bin_labels(slot)
 
     # ── advanced ──
 

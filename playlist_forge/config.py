@@ -12,16 +12,16 @@ Naming format:  bw_modulation_carrier+wave_duration_extras
 ─────────────────────────────────────────────────────────────
   10_a_440csi_30s                 10 Hz BW, amplitude, 440 Hz sine, 30 s
   40_a_440ctri_60s                40 Hz BW, amplitude, 440 Hz triangle, 60 s
-  40_bin_110csi_30s               binaural, center 110 Hz sine
+  40_b_110csi_30s                 binaural, center 110 Hz sine
   10_fm_440csaw_120s              FM on, 440 Hz sawtooth
-  40_bi_440csq_30s                bilateral panning, 440 Hz square
-  40_bi_fm_440csi_30s             bilateral + FM
+  40_st_440csq_30s                bilateral panning, 440 Hz square
+  40_st_fm_440csi_30s             bilateral + FM
   10_a_440csi_30s_amp80           non-default amplitude
   40_a_L440csiR460ctri_30s        split L/R carriers & waves
 
 Wave shortcuts:  si  tri  saw  sq
 Carrier suffix:  c   (e.g. 440c → 440 Hz carrier)
-Modulation:      a = amplitude · bin = binaural · bi = bilateral · fm = FM
+Modulation:      a = amplitude · b = binaural · st = bilateral · fm = FM
 """
 
 import json
@@ -112,7 +112,19 @@ def generate_row_name(rc):
         parts.append(f"{dur:.1f}s")
 
     # ── 5. extras (non-default values) ──
-    if not rc.binaural_on:
+    if rc.binaural_on:
+        la = rc.bi_left_amp
+        ra = rc.bi_right_amp
+        if la != 0 or ra != 0:
+            if la == ra:
+                parts.append(f"amp{la:.0f}")
+            elif ra == 0:
+                parts.append(f"Lamp{la:.0f}")
+            elif la == 0:
+                parts.append(f"Ramp{ra:.0f}")
+            else:
+                parts.append(f"Lamp{la:.0f}Ramp{ra:.0f}")
+    else:
         la = rc.left.amp_val
         ra = rc.right.amp_val
         if la != 100 or ra != 100:
@@ -169,13 +181,15 @@ def row_to_dict(rc):
         "hertz_forge_config": 1,
         "name": generate_row_name(rc),
         "row": {
-            "duration":    rc.duration,
-            "binaural_on": rc.binaural_on,
-            "bi_carrier":  rc.bi_carrier,
-            "bi_wave":     rc.bi_wave,
-            "bi_bw":       rc.bi_bw,
-            "left":        _ch_to_dict(rc.left),
-            "right":       _ch_to_dict(rc.right),
+            "duration":     rc.duration,
+            "binaural_on":  rc.binaural_on,
+            "bi_carrier":   rc.bi_carrier,
+            "bi_wave":      rc.bi_wave,
+            "bi_bw":        rc.bi_bw,
+            "bi_left_amp":  rc.bi_left_amp,
+            "bi_right_amp": rc.bi_right_amp,
+            "left":         _ch_to_dict(rc.left),
+            "right":        _ch_to_dict(rc.right),
         },
     }
 
@@ -184,11 +198,13 @@ def dict_to_row(d):
     """Deserialize a dict into a fresh ``RowConfig``."""
     r  = d["row"]
     rc = RowConfig()
-    rc.duration    = r.get("duration",    rc.duration)
-    rc.binaural_on = r.get("binaural_on", rc.binaural_on)
-    rc.bi_carrier  = r.get("bi_carrier",  rc.bi_carrier)
-    rc.bi_wave     = r.get("bi_wave",     rc.bi_wave)
-    rc.bi_bw       = r.get("bi_bw",       rc.bi_bw)
+    rc.duration     = r.get("duration",     rc.duration)
+    rc.binaural_on  = r.get("binaural_on",  rc.binaural_on)
+    rc.bi_carrier   = r.get("bi_carrier",   rc.bi_carrier)
+    rc.bi_wave      = r.get("bi_wave",      rc.bi_wave)
+    rc.bi_bw        = r.get("bi_bw",        rc.bi_bw)
+    rc.bi_left_amp  = r.get("bi_left_amp",  rc.bi_left_amp)
+    rc.bi_right_amp = r.get("bi_right_amp", rc.bi_right_amp)
     rc.left  = _dict_to_ch(r.get("left",  {}), "left")
     rc.right = _dict_to_ch(r.get("right", {}), "right")
     return rc

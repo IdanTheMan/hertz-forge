@@ -139,7 +139,20 @@ class BuildMixin:
             padx=6, pady=2,
             cursor="hand2",
             command=self._play_or_stop_all)
-        self._stop_all_btn.pack(side="left")
+        self._stop_all_btn.pack(
+            side="left", padx=(0, 4))
+
+        ttk.Button(
+            pl_row, text="+ Playlist",
+            style="Small.TButton",
+            command=self._add_playlist
+        ).pack(side="left", padx=2)
+
+        ttk.Button(
+            pl_row, text="Load Configs…",
+            style="Small.TButton",
+            command=self._load_configs_dialog
+        ).pack(side="left", padx=2)
 
         self._sep(top)
 
@@ -184,22 +197,6 @@ class BuildMixin:
         self._pl_frame.bind(
             "<Configure>",
             lambda e: self._schedule_reflow())
-
-        btn_f = tk.Frame(self._inner, bg=BG)
-        btn_f.pack(
-            fill="x", padx=4, pady=(8, 4))
-        _btn_row = tk.Frame(btn_f, bg=BG)
-        _btn_row.pack(anchor="center")
-        ttk.Button(
-            _btn_row, text="+ Playlist",
-            style="Small.TButton",
-            command=self._add_playlist
-        ).pack(side="left", padx=4)
-        ttk.Button(
-            _btn_row, text="Load Configs…",
-            style="Small.TButton",
-            command=self._load_configs_dialog
-        ).pack(side="left", padx=4)
 
         # ── drop overlay ──
         self._drop_overlay = tk.Frame(

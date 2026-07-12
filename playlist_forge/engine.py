@@ -38,6 +38,8 @@ ROW_DEFAULTS = {
     "bi_carrier":    110.0,
     "bi_wave":       "sine",
     "bi_bw":         40.0,
+    "bi_left_amp":   0.0,
+    "bi_right_amp":  0.0,
 }
 
 # └──────────────────────────────────────────────────────────┘
@@ -73,7 +75,8 @@ class ChannelConfig:
     def render(self, t, primary_side,
                carrier_ov=None,
                wave_ov=None,
-               bw_ov=None):
+               bw_ov=None,
+               amp_ov=None):
         carrier = (carrier_ov
                    if carrier_ov is not None
                    else self.carrier)
@@ -96,7 +99,9 @@ class ChannelConfig:
 
         bp  = 2 * np.pi * bw * t
         sb  = np.sin(bp)
-        amp = self.amp_val / 100.0
+        amp = ((amp_ov
+                if amp_ov is not None
+                else self.amp_val) / 100.0)
         bi  = self.bi_val  / 100.0
 
         if self.fm_on:
@@ -157,6 +162,8 @@ class RowConfig:
         self.bi_carrier  = d["bi_carrier"]
         self.bi_wave     = d["bi_wave"]
         self.bi_bw       = d["bi_bw"]
+        self.bi_left_amp = d["bi_left_amp"]
+        self.bi_right_amp = d["bi_right_amp"]
         self.duration    = d["duration"]
         self.included    = True
         self.name        = ""
@@ -268,9 +275,6 @@ class PlaylistEngine:
             d for _, d in playable if d > 0)
 
         if not looping:
-            # ← THIS IS THE FIX:
-            # when not looping and time exceeds
-            # total, playlist is done
             if total > 0 and t >= total:
                 return -1, 0.0
             return self._find_row(playable, t)
@@ -308,10 +312,12 @@ class PlaylistEngine:
                          + row.bi_bw / 2)
                 ll, lr = row.left.render(
                     t, "left", l_car,
-                    row.bi_wave, row.bi_bw)
+                    row.bi_wave, row.bi_bw,
+                    row.bi_left_amp)
                 rl, rr = row.right.render(
                     t, "right", r_car,
-                    row.bi_wave, row.bi_bw)
+                    row.bi_wave, row.bi_bw,
+                    row.bi_right_amp)
             else:
                 ll, lr = row.left.render(
                     t, "left")
@@ -412,7 +418,7 @@ class PlaylistEngine:
             wf.setsampwidth(2)
             wf.setframerate(self.SR)
             wf.writeframes(pcm.tobytes())
-            
+
     def switch_playlist(self, playlist):
         """Switch to a new playlist without
         restarting the audio stream."""
