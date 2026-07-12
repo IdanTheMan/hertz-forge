@@ -330,6 +330,32 @@ class RowMixin:
             lambda e, g=grip: g.config(
                 fg=MUTED))
 
+        # ── carryover helpers ──
+        def _carry_normal_to_bin():
+            """Binaural ON ← copy normal
+            values into binaural."""
+            cfg.bi_carrier = (
+                cfg.left.carrier
+                + cfg.right.carrier) / 2
+            cfg.bi_bw   = cfg.left.bw_freq
+            cfg.bi_wave = cfg.left.wave
+            cfg.left.carrier = (
+                cfg.bi_carrier - cfg.bi_bw / 2)
+            cfg.right.carrier = (
+                cfg.bi_carrier + cfg.bi_bw / 2)
+            cfg.left.bw_freq  = cfg.bi_bw
+            cfg.right.bw_freq = cfg.bi_bw
+
+        def _carry_bin_to_normal():
+            """Binaural OFF ← copy binaural
+            values into normal."""
+            cfg.left.carrier  = cfg.bi_carrier
+            cfg.right.carrier = cfg.bi_carrier
+            cfg.left.bw_freq  = cfg.bi_bw
+            cfg.right.bw_freq = cfg.bi_bw
+            cfg.left.wave     = cfg.bi_wave
+            cfg.right.wave    = cfg.bi_wave
+
         # ── helpers ──
         def _mirror_l_to_r():
             cfg.right.carrier = cfg.left.carrier
@@ -380,6 +406,8 @@ class RowMixin:
             try:
                 old = cfg.binaural_on
                 if sync_var.get():
+                    if bin_var.get():
+                        _carry_bin_to_normal()
                     bin_var.set(False)
                     cfg.binaural_on = False
                     _mirror_l_to_r()
@@ -410,12 +438,12 @@ class RowMixin:
                         text="Advanced ▸",
                         fg=MUTED)
                     adv_wrap.pack_forget()
+                    _carry_normal_to_bin()
                     cfg.binaural_on = True
-                    cfg.right.carrier = \
-                        cfg.left.carrier
                     cfg.right.bw_freq = \
                         cfg.left.bw_freq
                 else:
+                    _carry_bin_to_normal()
                     cfg.binaural_on = False
                 sync_cb.config(
                     fg=ACCENT
@@ -438,6 +466,7 @@ class RowMixin:
                 old = cfg.binaural_on
                 if adv_var.get():
                     if bin_var.get():
+                        _carry_bin_to_normal()
                         bin_var.set(False)
                         cfg.binaural_on = False
                     adv_btn.config(
