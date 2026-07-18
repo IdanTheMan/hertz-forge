@@ -6,6 +6,7 @@ from tkinter import filedialog, messagebox
 from hertz_forge.constants import MUTED, ACCENT
 from hertz_forge.audio import test_device_stereo
 from ..engine import PlaylistEngine
+from .helpers import _fmt_dur
 
 
 class TransportMixin:
@@ -92,9 +93,6 @@ class TransportMixin:
             text="● Playing", fg=ACCENT)
         container["frame"].config(
             highlightbackground=ACCENT)
-        container["time_lbl"].config(
-            text="00:00:00")
-        container["row_ind"].config(text="")
 
     def _toggle_pl(self, container):
         if self._playing_cont is container:
@@ -115,17 +113,22 @@ class TransportMixin:
             text="● Stopped", fg=MUTED)
         c["frame"].config(
             highlightbackground="#333355")
-        c["time_lbl"].config(text="")
-        c["row_ind"].config(text="")
         self._playing_cont = None
         self._set_active_row(None, -1)
+        self._reset_row_time_labels()
         self._sync_stop_all_btn()
+
+    def _reset_row_time_labels(self):
+        for cont in self._containers:
+            for slot in cont["slots"]:
+                dur = slot["config"].duration
+                slot["row_time_lbl"].config(
+                    text=_fmt_dur(dur),
+                    fg=MUTED)
 
     # ── playlist transitions (seamless) ──
 
     def _do_pl_transition(self):
-        """Switch to the next playlist without
-        restarting the audio stream."""
         if not self._playing_cont:
             return
         self._rebuild_pl_order()
@@ -157,7 +160,7 @@ class TransportMixin:
             self._stop_current()
             return
 
-        # ── UI: deactivate old ──
+        # deactivate old
         old = self._playing_cont
         old["play_btn"].config(
             text="▶  Play")
@@ -165,15 +168,12 @@ class TransportMixin:
             text="● Stopped", fg=MUTED)
         old["frame"].config(
             highlightbackground="#333355")
-        old["time_lbl"].config(text="")
-        old["row_ind"].config(text="")
 
-        # ── seamless switch — stream keeps
-        #    running, only playlist data swaps
+        # seamless switch
         self.eng.switch_playlist(
             new["playlist"])
 
-        # ── UI: activate new ──
+        # activate new
         self._playing_cont = new
         self._pl_transitioning = False
         self._sync_stop_all_btn()
@@ -183,9 +183,6 @@ class TransportMixin:
             text="● Playing", fg=ACCENT)
         new["frame"].config(
             highlightbackground=ACCENT)
-        new["time_lbl"].config(
-            text="00:00:00")
-        new["row_ind"].config(text="")
         self._set_active_row(None, -1)
 
     # ── save ──
@@ -260,36 +257,40 @@ class TransportMixin:
 
     def _tick(self):
         c = self._playing_cont
-        if self.eng.playing and c:
-            e = self.eng.elapsed()
-            total = int(e)
-            s = total % 60
-            m = (total // 60) % 60
-            h = total // 3600
-            c["time_lbl"].config(
-                text=(
-                    f"{h:02d}:"
-                    f"{m:02d}:{s:02d}"))
+        active_cont = None
+        active_idx = -1
+        row_t = 0
 
+        if self.eng.playing and c:
             idx, row_t = (
                 self.eng._current_row())
             self._set_active_row(c, idx)
 
             if idx >= 0:
+                active_cont = c
+                active_idx = idx
                 self._pl_transitioning = False
-                rs = int(row_t)
-                rem = rs % 60
-                rm  = (rs // 60) % 60
-                rh  = rs // 3600
-                c["row_ind"].config(
-                    text=(
-                        f"Row {idx+1} — "
-                        f"{rh:02d}:{rm:02d}"
-                        f":{rem:02d}"))
             else:
                 if not self._pl_transitioning:
                     self._pl_transitioning = True
                     self._do_pl_transition()
+
+        # update per-row time labels
+        for cont in self._containers:
+            for ri, slot in enumerate(
+                    cont["slots"]):
+                lbl = slot["row_time_lbl"]
+                if (cont is active_cont
+                        and ri == active_idx):
+                    lbl.config(
+                        text=_fmt_dur(row_t),
+                        fg=ACCENT)
+                else:
+                    lbl.config(
+                        text=_fmt_dur(
+                            slot["config"]
+                            .duration),
+                        fg=MUTED)
 
         self._sync_stop_all_btn()
         self.root.after(80, self._tick)

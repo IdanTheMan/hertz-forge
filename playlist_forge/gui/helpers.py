@@ -5,6 +5,19 @@ from hertz_forge.constants import BG, MUTED, DIVIDER, CARD
 _LABEL_PX = 75
 
 
+def _fmt_dur(seconds):
+    """Compact duration display."""
+    e = int(seconds)
+    if e < 60:
+        return f"{e}s"
+    s = e % 60
+    m = (e // 60) % 60
+    h = e // 3600
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
 class HelperMixin:
 
     def _sep(self, p):
@@ -38,8 +51,6 @@ class HelperMixin:
     # ── scroll ──
 
     def _schedule_scroll_sync(self):
-        """Debounce: cancel any pending sync
-        and schedule a new one 10 ms out."""
         if hasattr(self, '_scroll_sync_id'):
             try:
                 self.root.after_cancel(
@@ -50,7 +61,6 @@ class HelperMixin:
             10, self._do_scroll_sync)
 
     def _do_scroll_sync(self):
-        """Run once geometry has settled."""
         self._scanvas.configure(
             scrollregion=self._scanvas.bbox(
                 "all"))
@@ -68,8 +78,6 @@ class HelperMixin:
         self._schedule_scroll_sync()
 
     def _clamp_scroll(self):
-        """Reset to top when content fits
-        inside the viewport."""
         bbox = self._scanvas.bbox("all")
         if not bbox:
             return
@@ -79,8 +87,6 @@ class HelperMixin:
             self._scanvas.yview_moveto(0.0)
 
     def _on_mousewheel(self, event):
-        """Only scroll when content overflows
-        the viewport."""
         bbox = self._scanvas.bbox("all")
         if bbox:
             content_h = bbox[3] - bbox[1]

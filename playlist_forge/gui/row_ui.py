@@ -6,6 +6,7 @@ from hertz_forge.constants import (
     ACCENT, ACCENT2, MUTED, FG,
     DIVIDER, CARD)
 from hertz_forge.widgets import SpinEntry
+from .helpers import _fmt_dur
 
 _BODY_KEYS = {
     "left_carrier_spin", "left_wave_var",
@@ -33,7 +34,6 @@ class RowMixin:
             return
 
         if cfg.binaural_on:
-            # Binaural mode: sync amplitude only
             if source_side == "left":
                 cfg.bi_right_amp = cfg.bi_left_amp
                 sp = slot.get("right_amp_spin")
@@ -46,7 +46,6 @@ class RowMixin:
                     sp.set(cfg.bi_left_amp)
             return
 
-        # Normal mode — sync everything
         src = (cfg.left
                if source_side == "left"
                else cfg.right)
@@ -185,6 +184,14 @@ class RowMixin:
                 self._on_remove_click(c, sf)
         ).pack(side="right")
 
+        row_time_lbl = tk.Label(
+            hdr,
+            text=_fmt_dur(cfg.duration),
+            bg=CARD, fg=MUTED,
+            font=("Helvetica", 8))
+        row_time_lbl.pack(
+            side="right", padx=(0, 4))
+
         content = tk.Frame(card, bg=CARD)
         content.pack(fill="x")
 
@@ -232,6 +239,8 @@ class RowMixin:
         def on_dur(v):
             cfg.duration = v
             self._update_pl_dur(container)
+            row_time_lbl.config(
+                text=_fmt_dur(v))
 
         dur_spin = SpinEntry(
             ctrl, width=5, from_=0,
@@ -278,6 +287,7 @@ class RowMixin:
             "content":      content,
             "collapse_btn": collapse_btn,
             "collapsed":    False,
+            "row_time_lbl": row_time_lbl,
         }
         container["slots"].append(slot)
 
@@ -355,11 +365,6 @@ class RowMixin:
 
         # ── carryover helpers ──
         def _carry_normal_to_bin():
-            """Binaural ON <- copy normal
-            carrier/bw/wave into binaural.
-            Amp is NOT carried -- binaural
-            keeps its own bi_left_amp /
-            bi_right_amp."""
             cfg.bi_carrier = (
                 cfg.left.carrier
                 + cfg.right.carrier) / 2
@@ -375,11 +380,6 @@ class RowMixin:
             cfg.right.bw_freq = cfg.bi_bw
 
         def _carry_bin_to_normal():
-            """Binaural OFF <- copy binaural
-            carrier/bw/wave into normal.
-            Amp is NOT carried -- normal keeps
-            its own left.amp_val /
-            right.amp_val."""
             cfg.left.carrier  = cfg.bi_carrier
             cfg.right.carrier = cfg.bi_carrier
             cfg.left.bw_freq  = cfg.bi_bw
@@ -440,7 +440,6 @@ class RowMixin:
                 cfg.sync_on = sync_var.get()
                 if sync_var.get():
                     if cfg.binaural_on:
-                        # Binaural: sync amp only
                         self._apply_sync(
                             slot, "left")
                     else:
@@ -468,7 +467,6 @@ class RowMixin:
                 old = cfg.binaural_on
                 cfg.binaural_on = bin_var.get()
                 if bin_var.get():
-                    # entering binaural
                     adv_var.set(False)
                     cfg.adv_on = False
                     adv_btn.config(
@@ -483,7 +481,6 @@ class RowMixin:
                         self._apply_sync(
                             slot, "left")
                 else:
-                    # leaving binaural
                     _carry_bin_to_normal()
                     if sync_var.get():
                         cfg.sync_on = True

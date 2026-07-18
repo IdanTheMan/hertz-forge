@@ -7,6 +7,7 @@ from hertz_forge.constants import (
     BG, SURFACE, SURFACE2, ACCENT, ACCENT2,
     MUTED, FG, DIVIDER, CARD)
 from hertz_forge.widgets import SpinEntry
+from .helpers import _fmt_dur
 from ..engine import Playlist
 
 _MIN_COL_W = 320
@@ -134,7 +135,6 @@ class PlaylistMixin:
         pl = container["playlist"]
         source_pl_collapsed = container.get(
             "collapsed", False)
-        # save row collapsed states
         row_collapsed = [
             s.get("collapsed", False)
             for s in container["slots"]
@@ -152,7 +152,6 @@ class PlaylistMixin:
         new_cont = self._containers[ci]
         for i in range(len(new_pl.rows)):
             self._create_slot(new_cont, i)
-        # restore row collapsed states
         for i, slot in enumerate(
                 new_cont["slots"]):
             if (i < len(row_collapsed)
@@ -162,7 +161,6 @@ class PlaylistMixin:
         self._update_pl_dur(new_cont)
         self._rebuild_pl_order()
         self._reflow_playlists()
-        # restore playlist-level collapse
         if source_pl_collapsed:
             self._toggle_pl_collapse(new_cont)
 
@@ -222,6 +220,49 @@ class PlaylistMixin:
             font=("Helvetica", 11, "bold"))
         name_lbl.pack(side="left", padx=(4, 0))
 
+        row_loop_var = tk.BooleanVar(
+            value=pl.row_loop)
+        loop_cb = tk.Checkbutton(
+            h1, variable=row_loop_var,
+            text="loop",
+            bg=CARD,
+            fg=(ACCENT
+                if pl.row_loop else MUTED),
+            selectcolor=CARD,
+            activebackground=CARD,
+            activeforeground=ACCENT,
+            font=("Helvetica", 8, "bold"),
+            command=lambda: (
+                setattr(pl, 'row_loop',
+                        row_loop_var.get()),
+                loop_cb.config(
+                    fg=ACCENT
+                    if row_loop_var.get()
+                    else MUTED)))
+        loop_cb.pack(side="left", padx=(10, 0))
+
+        row_shuffle_var = tk.BooleanVar(
+            value=pl.row_shuffle)
+        shuffle_cb = tk.Checkbutton(
+            h1, variable=row_shuffle_var,
+            text="shuffle",
+            bg=CARD,
+            fg=(ACCENT
+                if pl.row_shuffle else MUTED),
+            selectcolor=CARD,
+            activebackground=CARD,
+            activeforeground=ACCENT,
+            font=("Helvetica", 8, "bold"),
+            command=lambda: (
+                setattr(pl, 'row_shuffle',
+                        row_shuffle_var.get()),
+                pl._rebuild_order(),
+                shuffle_cb.config(
+                    fg=ACCENT
+                    if row_shuffle_var.get()
+                    else MUTED)))
+        shuffle_cb.pack(side="left", padx=(4, 0))
+
         del_btn = tk.Button(
             h1, text="×",
             font=("Helvetica", 11, "bold"),
@@ -254,7 +295,7 @@ class PlaylistMixin:
         content = tk.Frame(frame, bg=CARD)
         content.pack(fill="x")
 
-        # ── line 2: transport controls ──
+        # ── line 2: transport + play rows + total ──
         h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
@@ -293,66 +334,14 @@ class PlaylistMixin:
         load_btn.pack(
             side="left", padx=(8, 0))
 
-        row_loop_var = tk.BooleanVar(
-            value=pl.row_loop)
-        loop_cb = tk.Checkbutton(
-            h2, variable=row_loop_var,
-            text="loop",
-            bg=CARD,
-            fg=(ACCENT
-                if pl.row_loop else MUTED),
-            selectcolor=CARD,
-            activebackground=CARD,
-            activeforeground=ACCENT,
-            font=("Helvetica", 8, "bold"),
-            command=lambda: (
-                setattr(pl, 'row_loop',
-                        row_loop_var.get()),
-                loop_cb.config(
-                    fg=ACCENT
-                    if row_loop_var.get()
-                    else MUTED)))
-        loop_cb.pack(side="left", padx=(10, 0))
-
-        row_shuffle_var = tk.BooleanVar(
-            value=pl.row_shuffle)
-        shuffle_cb = tk.Checkbutton(
-            h2, variable=row_shuffle_var,
-            text="shuffle",
-            bg=CARD,
-            fg=(ACCENT
-                if pl.row_shuffle else MUTED),
-            selectcolor=CARD,
-            activebackground=CARD,
-            activeforeground=ACCENT,
-            font=("Helvetica", 8, "bold"),
-            command=lambda: (
-                setattr(pl, 'row_shuffle',
-                        row_shuffle_var.get()),
-                pl._rebuild_order(),
-                shuffle_cb.config(
-                    fg=ACCENT
-                    if row_shuffle_var.get()
-                    else MUTED)))
-        shuffle_cb.pack(side="left", padx=(4, 0))
-
-        # ── line 2b: play rows + status + total ──
-        h2b = tk.Frame(content, bg=CARD)
-        h2b.pack(fill="x", padx=8, pady=(2, 0))
-
-        tk.Label(
-            h2b, text="Play rows", bg=CARD,
-            fg="#8888aa",
-            font=("Helvetica", 8, "bold")
-        ).pack(side="left")
-
         play_hint = tk.Label(
-            h2b,
+            h2,
             text=_play_rows_hint(
                 pl.play_rows),
             bg=CARD, fg=MUTED,
             font=("Helvetica", 7))
-        play_hint.pack(side="left", padx=(6, 2))
+        play_hint.pack(
+            side="left", padx=(12, 2))
 
         def on_play_rows(v):
             pl.play_rows = int(v)
@@ -362,47 +351,24 @@ class PlaylistMixin:
             self._update_pl_dur(container)
 
         SpinEntry(
-            h2b, width=3, from_=0, to=100,
+            h2, width=3, from_=0, to=100,
             step=1, fmt="{:.0f}",
             initial=str(int(pl.play_rows)),
             suffix="", bg=CARD,
             callback=on_play_rows
         ).pack(side="left")
 
-        status_lbl = tk.Label(
-            h2b, text="● Stopped",
-            bg=CARD, fg=MUTED,
-            font=("Helvetica", 9))
-        status_lbl.pack(
-            side="left", padx=(12, 0))
-
         total_lbl = tk.Label(
-            h2b, text="Total: 00:00",
+            h2, text="Total: 00:00",
             bg=CARD, fg=MUTED,
             font=("Helvetica", 9))
         total_lbl.pack(
             side="left", padx=(12, 0))
 
-        # ── line 3: playback info (hidden
-        #    initially, shown during playback) ──
-        h3 = tk.Frame(content, bg=CARD)
-
-        time_lbl = tk.Label(
-            h3, text="", bg=CARD, fg=ACCENT,
-            font=("Courier", 12, "bold"))
-        time_lbl.pack(side="left")
-
-        row_ind = tk.Label(
-            h3, text="", bg=CARD, fg=ACCENT,
-            font=("Helvetica", 9, "bold"))
-        row_ind.pack(
-            side="left", padx=(12, 0))
-
         # ── divider ──
-        divider_fr = tk.Frame(
-            content, bg=DIVIDER, height=1)
-        divider_fr.pack(
-            fill="x", padx=8, pady=6)
+        tk.Frame(
+            content, bg=DIVIDER, height=1
+        ).pack(fill="x", padx=8, pady=6)
 
         # ── rows area ──
         rows_frame = tk.Frame(content, bg=CARD)
@@ -426,10 +392,7 @@ class PlaylistMixin:
             "play_btn":     play_btn,
             "export_btn":   export_btn,
             "load_btn":     load_btn,
-            "status_lbl":   status_lbl,
             "total_lbl":    total_lbl,
-            "time_lbl":     time_lbl,
-            "row_ind":      row_ind,
             "rows_frame":   rows_frame,
             "btn_frame":    btn_frame,
             "content":      content,
@@ -437,8 +400,6 @@ class PlaylistMixin:
             "collapsed":    False,
             "slots":        [],
             "included":     True,
-            "h3":           h3,
-            "divider_fr":   divider_fr,
         }
         self._containers.append(container)
 
@@ -532,18 +493,15 @@ class PlaylistMixin:
         pl.rows.insert(idx + 1, new_cfg)
         new_cfg.name = ""
 
-        # save collapsed states of all rows
         collapsed_states = [
             s.get("collapsed", False)
             for s in container["slots"]
         ]
-        # insert state for the new row
         collapsed_states.insert(
             idx + 1, source_collapsed)
 
         self._rebuild_container_slots(container)
 
-        # restore collapsed states
         for i, s in enumerate(
                 container["slots"]):
             if (i < len(collapsed_states)
