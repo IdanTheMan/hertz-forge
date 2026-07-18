@@ -91,25 +91,6 @@ class BuildMixin:
             width=8, anchor="w"
         ).pack(side="left")
 
-        self._pl_shuffle_var = tk.BooleanVar(
-            value=True)
-        shuffle_cb = tk.Checkbutton(
-            pl_row,
-            variable=self._pl_shuffle_var,
-            text="shuffle",
-            bg=BG, fg=ACCENT,
-            selectcolor=BG,
-            activebackground=BG,
-            activeforeground=ACCENT,
-            font=("Helvetica", 9, "bold"),
-            command=lambda: (
-                self._toggle_pl_shuffle(),
-                shuffle_cb.config(
-                    fg=ACCENT
-                    if self._pl_shuffle_var.get()
-                    else MUTED)))
-        shuffle_cb.pack(side="left")
-
         self._pl_loop_var = tk.BooleanVar(
             value=True)
         loop_cb = tk.Checkbutton(
@@ -127,7 +108,26 @@ class BuildMixin:
                     fg=ACCENT
                     if self._pl_loop_var.get()
                     else MUTED)))
-        loop_cb.pack(side="left", padx=(4, 8))
+        loop_cb.pack(side="left")
+
+        self._pl_shuffle_var = tk.BooleanVar(
+            value=True)
+        shuffle_cb = tk.Checkbutton(
+            pl_row,
+            variable=self._pl_shuffle_var,
+            text="shuffle",
+            bg=BG, fg=ACCENT,
+            selectcolor=BG,
+            activebackground=BG,
+            activeforeground=ACCENT,
+            font=("Helvetica", 9, "bold"),
+            command=lambda: (
+                self._toggle_pl_shuffle(),
+                shuffle_cb.config(
+                    fg=ACCENT
+                    if self._pl_shuffle_var.get()
+                    else MUTED)))
+        shuffle_cb.pack(side="left", padx=(4, 8))
 
         self._stop_all_btn = tk.Button(
             pl_row, text="▶ Play All",

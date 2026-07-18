@@ -132,6 +132,13 @@ class PlaylistMixin:
 
     def _duplicate_playlist(self, container):
         pl = container["playlist"]
+        source_pl_collapsed = container.get(
+            "collapsed", False)
+        # save row collapsed states
+        row_collapsed = [
+            s.get("collapsed", False)
+            for s in container["slots"]
+        ]
         new_pl = Playlist(
             name=f"{pl.name} (copy)")
         new_pl.row_loop = pl.row_loop
@@ -145,10 +152,19 @@ class PlaylistMixin:
         new_cont = self._containers[ci]
         for i in range(len(new_pl.rows)):
             self._create_slot(new_cont, i)
+        # restore row collapsed states
+        for i, slot in enumerate(
+                new_cont["slots"]):
+            if (i < len(row_collapsed)
+                    and row_collapsed[i]):
+                self._toggle_row_collapse(slot)
         self._renumber(new_cont)
         self._update_pl_dur(new_cont)
         self._rebuild_pl_order()
         self._reflow_playlists()
+        # restore playlist-level collapse
+        if source_pl_collapsed:
+            self._toggle_pl_collapse(new_cont)
 
     def _create_pl_container(self, ci):
         pl = self._playlists[ci]
@@ -508,12 +524,32 @@ class PlaylistMixin:
 
     def _duplicate_row(self, container, slot):
         cfg = slot["config"]
+        source_collapsed = slot.get(
+            "collapsed", False)
         new_cfg = copy.deepcopy(cfg)
         pl = container["playlist"]
         idx = pl.rows.index(cfg)
         pl.rows.insert(idx + 1, new_cfg)
         new_cfg.name = ""
+
+        # save collapsed states of all rows
+        collapsed_states = [
+            s.get("collapsed", False)
+            for s in container["slots"]
+        ]
+        # insert state for the new row
+        collapsed_states.insert(
+            idx + 1, source_collapsed)
+
         self._rebuild_container_slots(container)
+
+        # restore collapsed states
+        for i, s in enumerate(
+                container["slots"]):
+            if (i < len(collapsed_states)
+                    and collapsed_states[i]):
+                self._toggle_row_collapse(s)
+
         self._refresh_scroll()
 
     def _renumber(self, container):
