@@ -188,6 +188,8 @@ def row_to_dict(rc):
             "bi_bw":        rc.bi_bw,
             "bi_left_amp":  rc.bi_left_amp,
             "bi_right_amp": rc.bi_right_amp,
+            "sync_on":      rc.sync_on,
+            "adv_on":       rc.adv_on,
             "left":         _ch_to_dict(rc.left),
             "right":        _ch_to_dict(rc.right),
         },
@@ -205,6 +207,8 @@ def dict_to_row(d):
     rc.bi_bw        = r.get("bi_bw",        rc.bi_bw)
     rc.bi_left_amp  = r.get("bi_left_amp",  rc.bi_left_amp)
     rc.bi_right_amp = r.get("bi_right_amp", rc.bi_right_amp)
+    rc.sync_on      = r.get("sync_on",      rc.sync_on)
+    rc.adv_on       = r.get("adv_on",       rc.adv_on)
     rc.left  = _dict_to_ch(r.get("left",  {}), "left")
     rc.right = _dict_to_ch(r.get("right", {}), "right")
     return rc

@@ -40,6 +40,9 @@ ROW_DEFAULTS = {
     "bi_bw":         40.0,
     "bi_left_amp":   0.0,
     "bi_right_amp":  0.0,
+
+    "sync_on":       True,
+    "adv_on":        False,
 }
 
 # └──────────────────────────────────────────────────────────┘
@@ -167,6 +170,8 @@ class RowConfig:
         self.duration    = d["duration"]
         self.included    = True
         self.name        = ""
+        self.sync_on     = d["sync_on"]
+        self.adv_on      = d["adv_on"]
 
 
 class Playlist:

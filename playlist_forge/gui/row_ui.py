@@ -31,6 +31,22 @@ class RowMixin:
         cfg = slot["config"]
         if not slot["sync_var"].get():
             return
+
+        if cfg.binaural_on:
+            # Binaural mode: sync amplitude only
+            if source_side == "left":
+                cfg.bi_right_amp = cfg.bi_left_amp
+                sp = slot.get("right_amp_spin")
+                if sp:
+                    sp.set(cfg.bi_right_amp)
+            else:
+                cfg.bi_left_amp = cfg.bi_right_amp
+                sp = slot.get("left_amp_spin")
+                if sp:
+                    sp.set(cfg.bi_left_amp)
+            return
+
+        # Normal mode — sync everything
         src = (cfg.left
                if source_side == "left"
                else cfg.right)
@@ -180,11 +196,13 @@ class RowMixin:
         ctrl = tk.Frame(content, bg=CARD)
         ctrl.pack(fill="x", padx=8, pady=(4, 4))
 
-        sync_var = tk.BooleanVar(value=True)
+        sync_var = tk.BooleanVar(
+            value=cfg.sync_on)
         sync_cb = tk.Checkbutton(
             ctrl, variable=sync_var,
             text="sync",
-            bg=CARD, fg=ACCENT,
+            bg=CARD,
+            fg=ACCENT if cfg.sync_on else MUTED,
             selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
@@ -196,7 +214,9 @@ class RowMixin:
         bin_cb = tk.Checkbutton(
             ctrl, variable=bin_var,
             text="binaural",
-            bg=CARD, fg=MUTED,
+            bg=CARD,
+            fg=(ACCENT
+                if cfg.binaural_on else MUTED),
             selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
@@ -226,11 +246,15 @@ class RowMixin:
         tk.Frame(ctrl, bg=CARD).pack(
             side="left", fill="x", expand=True)
 
-        adv_var = tk.BooleanVar(value=False)
+        adv_var = tk.BooleanVar(
+            value=cfg.adv_on)
         adv_btn = tk.Checkbutton(
             ctrl, variable=adv_var,
-            text="Advanced ▸",
-            bg=CARD, fg=MUTED,
+            text=("Advanced ▾"
+                  if cfg.adv_on
+                  else "Advanced ▸"),
+            bg=CARD,
+            fg=ACCENT if cfg.adv_on else MUTED,
             selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
@@ -331,9 +355,9 @@ class RowMixin:
 
         # ── carryover helpers ──
         def _carry_normal_to_bin():
-            """Binaural ON ← copy normal
+            """Binaural ON <- copy normal
             carrier/bw/wave into binaural.
-            Amp is NOT carried — binaural
+            Amp is NOT carried -- binaural
             keeps its own bi_left_amp /
             bi_right_amp."""
             cfg.bi_carrier = (
@@ -351,9 +375,9 @@ class RowMixin:
             cfg.right.bw_freq = cfg.bi_bw
 
         def _carry_bin_to_normal():
-            """Binaural OFF ← copy binaural
+            """Binaural OFF <- copy binaural
             carrier/bw/wave into normal.
-            Amp is NOT carried — normal keeps
+            Amp is NOT carried -- normal keeps
             its own left.amp_val /
             right.amp_val."""
             cfg.left.carrier  = cfg.bi_carrier
@@ -408,25 +432,28 @@ class RowMixin:
         _busy = [False]
 
         def on_sync(*_):
-            if _busy[0]: return
+            if _busy[0]:
+                return
             _busy[0] = True
             try:
                 old = cfg.binaural_on
+                cfg.sync_on = sync_var.get()
                 if sync_var.get():
-                    if bin_var.get():
-                        _carry_bin_to_normal()
-                    bin_var.set(False)
-                    cfg.binaural_on = False
-                    _mirror_l_to_r()
-                    _mirror_adv_l_to_r()
+                    if cfg.binaural_on:
+                        # Binaural: sync amp only
+                        self._apply_sync(
+                            slot, "left")
+                    else:
+                        _mirror_l_to_r()
+                        _mirror_adv_l_to_r()
                 sync_cb.config(
-                    fg=ACCENT
-                    if sync_var.get()
-                    else MUTED)
+                    fg=(ACCENT
+                        if sync_var.get()
+                        else MUTED))
                 bin_cb.config(
-                    fg=ACCENT
-                    if bin_var.get()
-                    else MUTED)
+                    fg=(ACCENT
+                        if bin_var.get()
+                        else MUTED))
                 if _needs_rebuild(old):
                     self._rebuild_body(slot)
                     self._rebuild_adv(slot)
@@ -434,32 +461,42 @@ class RowMixin:
                 _busy[0] = False
 
         def on_bin(*_):
-            if _busy[0]: return
+            if _busy[0]:
+                return
             _busy[0] = True
             try:
                 old = cfg.binaural_on
+                cfg.binaural_on = bin_var.get()
                 if bin_var.get():
-                    sync_var.set(False)
+                    # entering binaural
                     adv_var.set(False)
+                    cfg.adv_on = False
                     adv_btn.config(
                         text="Advanced ▸",
                         fg=MUTED)
                     adv_wrap.pack_forget()
                     _carry_normal_to_bin()
-                    cfg.binaural_on = True
                     cfg.right.bw_freq = \
                         cfg.left.bw_freq
+                    if sync_var.get():
+                        cfg.sync_on = True
+                        self._apply_sync(
+                            slot, "left")
                 else:
+                    # leaving binaural
                     _carry_bin_to_normal()
-                    cfg.binaural_on = False
+                    if sync_var.get():
+                        cfg.sync_on = True
+                        _mirror_l_to_r()
+                        _mirror_adv_l_to_r()
                 sync_cb.config(
-                    fg=ACCENT
-                    if sync_var.get()
-                    else MUTED)
+                    fg=(ACCENT
+                        if sync_var.get()
+                        else MUTED))
                 bin_cb.config(
-                    fg=ACCENT
-                    if bin_var.get()
-                    else MUTED)
+                    fg=(ACCENT
+                        if bin_var.get()
+                        else MUTED))
                 if _needs_rebuild(old):
                     self._rebuild_body(slot)
                     self._rebuild_adv(slot)
@@ -467,10 +504,12 @@ class RowMixin:
                 _busy[0] = False
 
         def toggle_adv():
-            if _busy[0]: return
+            if _busy[0]:
+                return
             _busy[0] = True
             try:
                 old = cfg.binaural_on
+                cfg.adv_on = adv_var.get()
                 if adv_var.get():
                     if bin_var.get():
                         _carry_bin_to_normal()
@@ -500,6 +539,14 @@ class RowMixin:
 
         self._rebuild_body(slot)
         self._rebuild_adv(slot)
+
+        # restore advanced panel visibility
+        if cfg.adv_on and not cfg.binaural_on:
+            adv_wrap.pack(
+                fill="x", padx=6, pady=(0, 2),
+                before=ctrl)
+            adv_btn.config(
+                text="Advanced ▾", fg=ACCENT)
 
     # ── body ──
 
@@ -694,14 +741,18 @@ class RowMixin:
             row=0, column=1, sticky="w")
 
         r_l_amp = self._label_row(lf, "Amp")
+
+        def on_l_amp(v):
+            cfg.bi_left_amp = v
+            self._apply_sync(slot, "left")
+
         l_amp = SpinEntry(
             r_l_amp, width=5, from_=0, to=100,
             step=1, fmt="{:.0f}",
             initial=str(int(
                 cfg.bi_left_amp)),
             suffix="", bg=CARD,
-            callback=lambda v: setattr(
-                cfg, 'bi_left_amp', v))
+            callback=on_l_amp)
         l_amp.grid(
             row=0, column=1, sticky="w")
         slot["left_amp_spin"] = l_amp
@@ -719,14 +770,18 @@ class RowMixin:
             row=0, column=1, sticky="w")
 
         r_r_amp = self._label_row(rf, "Amp")
+
+        def on_r_amp(v):
+            cfg.bi_right_amp = v
+            self._apply_sync(slot, "right")
+
         r_amp_spin = SpinEntry(
             r_r_amp, width=5, from_=0, to=100,
             step=1, fmt="{:.0f}",
             initial=str(int(
                 cfg.bi_right_amp)),
             suffix="", bg=CARD,
-            callback=lambda v: setattr(
-                cfg, 'bi_right_amp', v))
+            callback=on_r_amp)
         r_amp_spin.grid(
             row=0, column=1, sticky="w")
         slot["right_amp_spin"] = r_amp_spin
