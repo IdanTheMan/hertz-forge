@@ -6,9 +6,17 @@ import random
 from hertz_forge.constants import (
     BG, SURFACE, SURFACE2, ACCENT, ACCENT2,
     MUTED, FG, DIVIDER, CARD)
+from hertz_forge.widgets import SpinEntry
 from ..engine import Playlist
 
 _MIN_COL_W = 320
+
+
+def _play_rows_hint(n):
+    if n <= 0:
+        return "(all)"
+    return (f"({int(n)} row"
+            f"{'s' if int(n) != 1 else ''})")
 
 
 class PlaylistMixin:
@@ -31,7 +39,7 @@ class PlaylistMixin:
         if self._pl_shuffle:
             random.shuffle(self._pl_play_order)
 
-    # ── reflow (multi-column) ──
+    # ── reflow (multi-column, static width) ──
 
     def _schedule_reflow(self):
         if hasattr(self, '_reflow_id'):
@@ -56,15 +64,18 @@ class PlaylistMixin:
             co = i % cols
             c["frame"].grid(
                 row=r, column=co,
-                sticky="nsew",
+                sticky="nw",
                 padx=4, pady=6, ipady=4)
 
         for col in range(cols):
             pf.columnconfigure(
-                col, weight=1, uniform="pl")
+                col, weight=0,
+                minsize=_MIN_COL_W,
+                uniform="pl")
         for col in range(cols, 20):
             pf.columnconfigure(
-                col, weight=0, uniform="")
+                col, weight=1, minsize=0,
+                uniform="")
 
         self._refresh_scroll()
 
@@ -125,6 +136,7 @@ class PlaylistMixin:
             name=f"{pl.name} (copy)")
         new_pl.row_loop = pl.row_loop
         new_pl.row_shuffle = pl.row_shuffle
+        new_pl.play_rows = pl.play_rows
         new_pl.rows = [
             copy.deepcopy(r) for r in pl.rows]
         self._playlists.append(new_pl)
@@ -145,7 +157,6 @@ class PlaylistMixin:
             self._pl_frame, bg=CARD,
             highlightthickness=2,
             highlightbackground="#333355")
-        # grid placement handled by _reflow
 
         # ── line 1 ──
         h1 = tk.Frame(frame, bg=CARD)
@@ -227,7 +238,7 @@ class PlaylistMixin:
         content = tk.Frame(frame, bg=CARD)
         content.pack(fill="x")
 
-        # ── line 2: controls ──
+        # ── line 2: transport controls ──
         h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
@@ -305,23 +316,56 @@ class PlaylistMixin:
                     else MUTED)))
         shuffle_cb.pack(side="left", padx=(4, 0))
 
+        # ── line 2b: play rows + status + total ──
+        h2b = tk.Frame(content, bg=CARD)
+        h2b.pack(fill="x", padx=8, pady=(2, 0))
+
+        tk.Label(
+            h2b, text="Play rows", bg=CARD,
+            fg="#8888aa",
+            font=("Helvetica", 8, "bold")
+        ).pack(side="left")
+
+        play_hint = tk.Label(
+            h2b,
+            text=_play_rows_hint(
+                pl.play_rows),
+            bg=CARD, fg=MUTED,
+            font=("Helvetica", 7))
+        play_hint.pack(side="left", padx=(6, 2))
+
+        def on_play_rows(v):
+            pl.play_rows = int(v)
+            play_hint.config(
+                text=_play_rows_hint(
+                    pl.play_rows))
+            self._update_pl_dur(container)
+
+        SpinEntry(
+            h2b, width=3, from_=0, to=100,
+            step=1, fmt="{:.0f}",
+            initial=str(int(pl.play_rows)),
+            suffix="", bg=CARD,
+            callback=on_play_rows
+        ).pack(side="left")
+
         status_lbl = tk.Label(
-            h2, text="● Stopped",
+            h2b, text="● Stopped",
             bg=CARD, fg=MUTED,
             font=("Helvetica", 9))
         status_lbl.pack(
             side="left", padx=(12, 0))
 
         total_lbl = tk.Label(
-            h2, text="Total: 00:00",
+            h2b, text="Total: 00:00",
             bg=CARD, fg=MUTED,
             font=("Helvetica", 9))
         total_lbl.pack(
             side="left", padx=(12, 0))
 
-        # ── line 3: playback info ──
+        # ── line 3: playback info (hidden
+        #    initially, shown during playback) ──
         h3 = tk.Frame(content, bg=CARD)
-        h3.pack(fill="x", padx=8, pady=(2, 0))
 
         time_lbl = tk.Label(
             h3, text="", bg=CARD, fg=ACCENT,
@@ -334,9 +378,11 @@ class PlaylistMixin:
         row_ind.pack(
             side="left", padx=(12, 0))
 
-        tk.Frame(
-            content, bg=DIVIDER, height=1
-        ).pack(fill="x", padx=8, pady=6)
+        # ── divider ──
+        divider_fr = tk.Frame(
+            content, bg=DIVIDER, height=1)
+        divider_fr.pack(
+            fill="x", padx=8, pady=6)
 
         # ── rows area ──
         rows_frame = tk.Frame(content, bg=CARD)
@@ -371,6 +417,8 @@ class PlaylistMixin:
             "collapsed":    False,
             "slots":        [],
             "included":     True,
+            "h3":           h3,
+            "divider_fr":   divider_fr,
         }
         self._containers.append(container)
 
@@ -475,7 +523,7 @@ class PlaylistMixin:
     def _update_pl_dur(self, container):
         total = (
             container["playlist"]
-            .total_duration())
+            .playback_duration())
         e = int(total)
         s = e % 60
         m = (e // 60) % 60

@@ -180,6 +180,7 @@ class Playlist:
         self.rows         = []
         self.row_loop     = False
         self.row_shuffle  = False
+        self.play_rows    = 0     # 0 = all
         self._play_order  = []
 
     def add_row(self):
@@ -200,25 +201,33 @@ class Playlist:
             self._rebuild_order()
 
     def _rebuild_order(self):
+        """Always natural order. Shuffle
+        happens in prepare_playback (once) or
+        _current_row (per cycle)."""
         self._play_order = [
             i for i, r in enumerate(self.rows)
             if r.included
         ]
-        if self.row_shuffle:
-            if len(self._play_order) > 1:
-                prev = list(self._play_order)
-                random.shuffle(self._play_order)
-                while self._play_order == prev:
-                    random.shuffle(
-                        self._play_order)
 
     def prepare_playback(self):
         self._rebuild_order()
+        if (self.row_shuffle
+                and len(self._play_order) > 1):
+            random.shuffle(self._play_order)
 
     def total_duration(self):
         return sum(
             r.duration for r in self.rows
             if r.included)
+
+    def playback_duration(self):
+        """Duration of the rows that will
+        actually play (respects play_rows)."""
+        included = [
+            r for r in self.rows if r.included]
+        if self.play_rows > 0:
+            included = included[:self.play_rows]
+        return sum(r.duration for r in included)
 
 
 class PlaylistEngine:
@@ -267,6 +276,12 @@ class PlaylistEngine:
         order = self.playlist._play_order
         looping = self.playlist.row_loop
         shuffling = self.playlist.row_shuffle
+        play_rows = self.playlist.play_rows
+
+        # limit by play_rows
+        if (play_rows > 0
+                and len(order) > play_rows):
+            order = order[:play_rows]
 
         playable = self._build_playable(
             order, looping)
@@ -294,10 +309,35 @@ class PlaylistEngine:
                 and cycle_num != self._last_cycle
         ):
             self._last_cycle = cycle_num
-            self.playlist._rebuild_order()
-            order = self.playlist._play_order
-            playable = self._build_playable(
-                order, True)
+            # fresh random each cycle
+            included = [
+                i for i, r
+                in enumerate(self.playlist.rows)
+                if r.included]
+            if included:
+                if (play_rows > 0
+                        and play_rows
+                            < len(included)):
+                    new_order = random.sample(
+                        included, play_rows)
+                else:
+                    new_order = list(included)
+                    random.shuffle(new_order)
+                # persist to _play_order so
+                # next call picks it up
+                self.playlist._play_order = \
+                    new_order
+                order = new_order
+                playable = self._build_playable(
+                    order, True)
+                # recalculate with new total
+                total = sum(
+                    d for _, d in playable
+                    if d > 0)
+                if total > 0:
+                    cycle_num = int(t / total)
+                    pos = (t
+                           - cycle_num * total)
 
         return self._find_row(playable, pos)
 

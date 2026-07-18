@@ -47,8 +47,8 @@ class App(StyleMixin, HelperMixin, BuildMixin,
 
         self.root.title(
             "Hertz Forge — Playlists")
-        self.root.geometry("620x720")
-        self.root.minsize(620, 360)
+        self.root.geometry("505x720")
+        self.root.minsize(505, 360)
         self.root.configure(bg="#0c0c18")
 
         self._style()
