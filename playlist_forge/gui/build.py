@@ -92,12 +92,12 @@ class BuildMixin:
         ).pack(side="left")
 
         self._pl_shuffle_var = tk.BooleanVar(
-            value=False)
+            value=True)
         shuffle_cb = tk.Checkbutton(
             pl_row,
             variable=self._pl_shuffle_var,
             text="shuffle",
-            bg=BG, fg=MUTED,
+            bg=BG, fg=ACCENT,
             selectcolor=BG,
             activebackground=BG,
             activeforeground=ACCENT,
@@ -111,12 +111,12 @@ class BuildMixin:
         shuffle_cb.pack(side="left")
 
         self._pl_loop_var = tk.BooleanVar(
-            value=False)
+            value=True)
         loop_cb = tk.Checkbutton(
             pl_row,
             variable=self._pl_loop_var,
             text="loop",
-            bg=BG, fg=MUTED,
+            bg=BG, fg=ACCENT,
             selectcolor=BG,
             activebackground=BG,
             activeforeground=ACCENT,

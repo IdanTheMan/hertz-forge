@@ -282,7 +282,9 @@ class PlaylistMixin:
         loop_cb = tk.Checkbutton(
             h2, variable=row_loop_var,
             text="loop",
-            bg=CARD, fg=MUTED,
+            bg=CARD,
+            fg=(ACCENT
+                if pl.row_loop else MUTED),
             selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,
@@ -301,7 +303,9 @@ class PlaylistMixin:
         shuffle_cb = tk.Checkbutton(
             h2, variable=row_shuffle_var,
             text="shuffle",
-            bg=CARD, fg=MUTED,
+            bg=CARD,
+            fg=(ACCENT
+                if pl.row_shuffle else MUTED),
             selectcolor=CARD,
             activebackground=CARD,
             activeforeground=ACCENT,

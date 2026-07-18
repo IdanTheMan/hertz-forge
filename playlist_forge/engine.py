@@ -179,7 +179,7 @@ class Playlist:
         self.name         = name
         self.rows         = []
         self.row_loop     = False
-        self.row_shuffle  = False
+        self.row_shuffle  = True
         self.play_rows    = 0     # 0 = all
         self._play_order  = []
 
