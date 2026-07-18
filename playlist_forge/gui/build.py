@@ -212,6 +212,10 @@ class BuildMixin:
                 anchor="center")
         self._drop_overlay.place_forget()
 
+        self.root.bind(
+            "<space>",
+            lambda e: self._play_or_stop_all())
+        
         tk.Frame(
             self._inner, bg=BG, height=20
         ).pack()
