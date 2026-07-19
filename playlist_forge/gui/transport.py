@@ -89,8 +89,6 @@ class TransportMixin:
         self._sync_stop_all_btn()
         container["play_btn"].config(
             text="■  Stop")
-        container["status_lbl"].config(
-            text="● Playing", fg=ACCENT)
         container["frame"].config(
             highlightbackground=ACCENT)
 
@@ -109,8 +107,6 @@ class TransportMixin:
             return
         self.eng.stop()
         c["play_btn"].config(text="▶  Play")
-        c["status_lbl"].config(
-            text="● Stopped", fg=MUTED)
         c["frame"].config(
             highlightbackground="#333355")
         self._playing_cont = None
@@ -160,27 +156,20 @@ class TransportMixin:
             self._stop_current()
             return
 
-        # deactivate old
         old = self._playing_cont
         old["play_btn"].config(
             text="▶  Play")
-        old["status_lbl"].config(
-            text="● Stopped", fg=MUTED)
         old["frame"].config(
             highlightbackground="#333355")
 
-        # seamless switch
         self.eng.switch_playlist(
             new["playlist"])
 
-        # activate new
         self._playing_cont = new
         self._pl_transitioning = False
         self._sync_stop_all_btn()
         new["play_btn"].config(
             text="■  Stop")
-        new["status_lbl"].config(
-            text="● Playing", fg=ACCENT)
         new["frame"].config(
             highlightbackground=ACCENT)
         self._set_active_row(None, -1)
@@ -213,9 +202,6 @@ class TransportMixin:
             initialfile=initial)
         if not path:
             return
-        container["status_lbl"].config(
-            text="● Saving…", fg=ACCENT)
-        self.root.update()
 
         save_eng = PlaylistEngine()
         save_eng.playlist = pl
@@ -227,26 +213,9 @@ class TransportMixin:
                   / (1024 * 1024))
 
             def done():
-                if (self._playing_cont
-                        is container):
-                    container[
-                        "status_lbl"].config(
-                        text="● Playing",
-                        fg=ACCENT)
-                else:
-                    container[
-                        "status_lbl"].config(
-                        text=(
-                            f"● Saved "
-                            f"({mb:.1f} MB)"),
-                        fg=ACCENT)
-                    self.root.after(
-                        3000,
-                        lambda: container[
-                            "status_lbl"
-                        ].config(
-                            text="● Stopped",
-                            fg=MUTED))
+                self.root.after(
+                    3000,
+                    lambda: None)
 
             self.root.after(0, done)
 
@@ -256,12 +225,13 @@ class TransportMixin:
     # ── tick ──
 
     def _tick(self):
-        c = self._playing_cont
         active_cont = None
         active_idx = -1
         row_t = 0
 
-        if self.eng.playing and c:
+        if self.eng.playing and self._playing_cont:
+            c = self._playing_cont
+
             idx, row_t = (
                 self.eng._current_row())
             self._set_active_row(c, idx)
