@@ -29,8 +29,8 @@ class App(StyleMixin, HelperMixin, BuildMixin,
         self.output_devices = get_output_devices()
         self._playing_cont = None
 
-        self._pl_loop       = False
-        self._pl_shuffle    = False
+        self._pl_loop       = True
+        self._pl_shuffle    = True
         self._pl_play_order = []
 
         self._row_drag = {"active": False}
