@@ -112,6 +112,8 @@ def generate_row_name(rc):
         parts.append(f"{dur:.1f}s")
 
     # ── 5. extras (non-default values) ──
+
+    # amplitude
     if rc.binaural_on:
         la = rc.bi_left_amp
         ra = rc.bi_right_amp
@@ -137,6 +139,19 @@ def generate_row_name(rc):
             else:
                 parts.append(f"Lamp{la:.0f}Ramp{ra:.0f}")
 
+    # volume
+    lv = rc.left.vol
+    rv = rc.right.vol
+    if lv != 100 or rv != 100:
+        if lv == rv:
+            parts.append(f"vol{lv:.0f}")
+        elif rv == 100:
+            parts.append(f"Lvol{lv:.0f}")
+        elif lv == 100:
+            parts.append(f"Rvol{rv:.0f}")
+        else:
+            parts.append(f"Lvol{lv:.0f}Rvol{rv:.0f}")
+
     return "_".join(parts)
 
 
@@ -159,6 +174,7 @@ def _ch_to_dict(ch):
         "fm_on":        ch.fm_on,
         "fm_offset_lo": ch.fm_offset_lo,
         "fm_offset_hi": ch.fm_offset_hi,
+        "vol":          ch.vol,
     }
 
 
@@ -172,6 +188,7 @@ def _dict_to_ch(d, side):
     ch.fm_on        = d.get("fm_on",        ch.fm_on)
     ch.fm_offset_lo = d.get("fm_offset_lo", ch.fm_offset_lo)
     ch.fm_offset_hi = d.get("fm_offset_hi", ch.fm_offset_hi)
+    ch.vol          = d.get("vol",          ch.vol)
     return ch
 
 

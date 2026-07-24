@@ -11,9 +11,12 @@ from .helpers import _fmt_dur
 _BODY_KEYS = {
     "left_carrier_spin", "left_wave_var",
     "left_bw_spin", "left_amp_spin",
+    "left_vol_spin",
     "right_carrier_spin", "right_wave_var",
     "right_bw_spin", "right_amp_spin",
+    "right_vol_spin",
     "bi_l_lbl", "bi_r_lbl",
+    "bi_l_vol_spin", "bi_r_vol_spin",
 }
 
 _ADV_KEYS = {
@@ -39,11 +42,19 @@ class RowMixin:
                 sp = slot.get("right_amp_spin")
                 if sp:
                     sp.set(cfg.bi_right_amp)
+                cfg.right.vol = cfg.left.vol
+                sp = slot.get("bi_r_vol_spin")
+                if sp:
+                    sp.set(cfg.right.vol)
             else:
                 cfg.bi_left_amp = cfg.bi_right_amp
                 sp = slot.get("left_amp_spin")
                 if sp:
                     sp.set(cfg.bi_left_amp)
+                cfg.left.vol = cfg.right.vol
+                sp = slot.get("bi_l_vol_spin")
+                if sp:
+                    sp.set(cfg.left.vol)
             return
 
         src = (cfg.left
@@ -59,10 +70,12 @@ class RowMixin:
         dst.wave    = src.wave
         dst.bw_freq = src.bw_freq
         dst.amp_val = src.amp_val
+        dst.vol     = src.vol
         for attr, field in [
                 ("carrier", "carrier_spin"),
                 ("bw_freq", "bw_spin"),
-                ("amp_val", "amp_spin")]:
+                ("amp_val", "amp_spin"),
+                ("vol", "vol_spin")]:
             sp = slot.get(f"{dk}_{field}")
             if sp:
                 sp.set(getattr(src, attr))
@@ -393,10 +406,12 @@ class RowMixin:
             cfg.right.wave    = cfg.left.wave
             cfg.right.bw_freq = cfg.left.bw_freq
             cfg.right.amp_val = cfg.left.amp_val
+            cfg.right.vol     = cfg.left.vol
             for attr, field in [
                     ("carrier", "carrier_spin"),
                     ("bw_freq", "bw_spin"),
-                    ("amp_val", "amp_spin")]:
+                    ("amp_val", "amp_spin"),
+                    ("vol", "vol_spin")]:
                 sp = slot.get(
                     f"right_{field}")
                 if sp:
@@ -648,6 +663,19 @@ class RowMixin:
             row=0, column=1, sticky="w")
         slot[f"{side}_amp_spin"] = amp_spin
 
+        r4 = self._label_row(parent, "Vol")
+        vol_spin = SpinEntry(
+            r4, width=5, from_=0, to=100,
+            step=1, fmt="{:.0f}",
+            initial=str(int(ch.vol)),
+            suffix="%", bg=CARD,
+            callback=lambda v, s=side: (
+                setattr(ch, 'vol', v),
+                self._apply_sync(slot, s)))
+        vol_spin.grid(
+            row=0, column=1, sticky="w")
+        slot[f"{side}_vol_spin"] = vol_spin
+
     def _build_binaural_body(self, slot):
         cfg  = slot["config"]
         body = slot["body"]
@@ -725,6 +753,7 @@ class RowMixin:
         rf.grid(row=0, column=2,
                 sticky="nsew", padx=(4, 0))
 
+        # ── L side ──
         tk.Label(
             lf, text="L", bg=CARD,
             fg="#8888aa",
@@ -754,6 +783,23 @@ class RowMixin:
             row=0, column=1, sticky="w")
         slot["left_amp_spin"] = l_amp
 
+        r_l_vol = self._label_row(lf, "Vol")
+
+        def on_l_vol(v):
+            cfg.left.vol = v
+            self._apply_sync(slot, "left")
+
+        l_vol_spin = SpinEntry(
+            r_l_vol, width=5, from_=0, to=100,
+            step=1, fmt="{:.0f}",
+            initial=str(int(cfg.left.vol)),
+            suffix="%", bg=CARD,
+            callback=on_l_vol)
+        l_vol_spin.grid(
+            row=0, column=1, sticky="w")
+        slot["bi_l_vol_spin"] = l_vol_spin
+
+        # ── R side ──
         tk.Label(
             rf, text="R", bg=CARD,
             fg="#8888aa",
@@ -782,6 +828,22 @@ class RowMixin:
         r_amp_spin.grid(
             row=0, column=1, sticky="w")
         slot["right_amp_spin"] = r_amp_spin
+
+        r_r_vol = self._label_row(rf, "Vol")
+
+        def on_r_vol(v):
+            cfg.right.vol = v
+            self._apply_sync(slot, "right")
+
+        r_vol_spin = SpinEntry(
+            r_r_vol, width=5, from_=0, to=100,
+            step=1, fmt="{:.0f}",
+            initial=str(int(cfg.right.vol)),
+            suffix="%", bg=CARD,
+            callback=on_r_vol)
+        r_vol_spin.grid(
+            row=0, column=1, sticky="w")
+        slot["bi_r_vol_spin"] = r_vol_spin
 
         self._update_bin_labels(slot)
 

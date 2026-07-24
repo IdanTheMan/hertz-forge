@@ -24,6 +24,7 @@ ROW_DEFAULTS = {
     "left_fm":       False,
     "left_fm_lo":    -30.0,
     "left_fm_hi":    40.0,
+    "left_vol":      100.0,
 
     "right_carrier": 440.0,
     "right_wave":    "sine",
@@ -33,6 +34,7 @@ ROW_DEFAULTS = {
     "right_fm":      False,
     "right_fm_lo":   -30.0,
     "right_fm_hi":   40.0,
+    "right_vol":     100.0,
 
     "binaural_on":   False,
     "bi_carrier":    110.0,
@@ -74,6 +76,7 @@ class ChannelConfig:
         self.fm_on        = d[f"{side}_fm"]
         self.fm_offset_lo = d[f"{side}_fm_lo"]
         self.fm_offset_hi = d[f"{side}_fm_hi"]
+        self.vol          = d[f"{side}_vol"]
 
     def render(self, t, primary_side,
                carrier_ov=None,
@@ -93,67 +96,70 @@ class ChannelConfig:
         if bw <= 0:
             sig = _osc(t, wave, carrier)
             if primary_side == "left":
-                return (sig.copy(),
-                        np.zeros(len(t),
-                                 dtype=np.float32))
-            return (np.zeros(len(t),
-                             dtype=np.float32),
-                    sig.copy())
-
-        bp  = 2 * np.pi * bw * t
-        sb  = np.sin(bp)
-        amp = ((amp_ov
-                if amp_ov is not None
-                else self.amp_val) / 100.0)
-        bi  = self.bi_val  / 100.0
-
-        if self.fm_on:
-            fs = carrier + self.fm_offset_lo
-            fe = carrier + self.fm_offset_hi
-            c  = (fs + fe) / 2
-            d  = abs(fe - fs) / 2
-            car = (_osc(t, wave, c)
-                   * np.cos(
-                       (d / max(bw, 0.01))
-                       * np.sin(bp)))
-        else:
-            car = _osc(t, wave, carrier)
-
-        if amp > 0:
-            env = 1.0 - amp * 0.5 * (1.0 - sb)
-            sig = car * env
-        elif self.fm_on:
-            sig = car * 0.7
-        else:
-            sig = car
-
-        left  = np.zeros(len(t),
-                         dtype=np.float32)
-        right = np.zeros(len(t),
-                         dtype=np.float32)
-
-        if bi > 0:
-            ps = 1 + bi * 9
-            pn = np.clip(
-                0.5 - 0.5 * np.tanh(
-                    ps * np.cos(
-                        bp / 2 - np.pi / 4)),
-                0, 1)
-            cos_pan = np.cos(pn * np.pi / 2)
-            sin_pan = np.sin(pn * np.pi / 2)
-            if primary_side == "left":
-                left  = sig * cos_pan
-                right = sig * sin_pan
+                left = sig.copy()
+                right = np.zeros(
+                    len(t), dtype=np.float32)
             else:
-                left  = sig * sin_pan
-                right = sig * cos_pan
-        else:
-            if primary_side == "left":
-                left = sig
-            else:
-                right = sig
+                left = np.zeros(
+                    len(t), dtype=np.float32)
+                right = sig.copy()
 
-        return left, right
+        else:
+            bp  = 2 * np.pi * bw * t
+            sb  = np.sin(bp)
+            amp = ((amp_ov
+                    if amp_ov is not None
+                    else self.amp_val) / 100.0)
+            bi  = self.bi_val  / 100.0
+
+            if self.fm_on:
+                fs = carrier + self.fm_offset_lo
+                fe = carrier + self.fm_offset_hi
+                c  = (fs + fe) / 2
+                d  = abs(fe - fs) / 2
+                car = (_osc(t, wave, c)
+                       * np.cos(
+                           (d / max(bw, 0.01))
+                           * np.sin(bp)))
+            else:
+                car = _osc(t, wave, carrier)
+
+            if amp > 0:
+                env = 1.0 - amp * 0.5 * (1.0 - sb)
+                sig = car * env
+            elif self.fm_on:
+                sig = car * 0.7
+            else:
+                sig = car
+
+            left  = np.zeros(
+                len(t), dtype=np.float32)
+            right = np.zeros(
+                len(t), dtype=np.float32)
+
+            if bi > 0:
+                ps = 1 + bi * 9
+                pn = np.clip(
+                    0.5 - 0.5 * np.tanh(
+                        ps * np.cos(
+                            bp / 2 - np.pi / 4)),
+                    0, 1)
+                cos_pan = np.cos(pn * np.pi / 2)
+                sin_pan = np.sin(pn * np.pi / 2)
+                if primary_side == "left":
+                    left  = sig * cos_pan
+                    right = sig * sin_pan
+                else:
+                    left  = sig * sin_pan
+                    right = sig * cos_pan
+            else:
+                if primary_side == "left":
+                    left = sig
+                else:
+                    right = sig
+
+        v = self.vol / 100.0
+        return left * v, right * v
 
 
 class RowConfig:
@@ -309,7 +315,6 @@ class PlaylistEngine:
                 and cycle_num != self._last_cycle
         ):
             self._last_cycle = cycle_num
-            # fresh random each cycle
             included = [
                 i for i, r
                 in enumerate(self.playlist.rows)
@@ -323,14 +328,11 @@ class PlaylistEngine:
                 else:
                     new_order = list(included)
                     random.shuffle(new_order)
-                # persist to _play_order so
-                # next call picks it up
                 self.playlist._play_order = \
                     new_order
                 order = new_order
                 playable = self._build_playable(
                     order, True)
-                # recalculate with new total
                 total = sum(
                     d for _, d in playable
                     if d > 0)

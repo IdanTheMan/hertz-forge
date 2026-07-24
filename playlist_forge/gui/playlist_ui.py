@@ -2,6 +2,7 @@ import copy
 import tkinter as tk
 from tkinter import ttk
 import random
+import numpy as np
 
 from hertz_forge.constants import (
     BG, SURFACE, SURFACE2, ACCENT, ACCENT2,
@@ -39,6 +40,97 @@ class PlaylistMixin:
             if c.get("included", True)]
         if self._pl_shuffle:
             random.shuffle(self._pl_play_order)
+
+    # ── equalize dB (RMS-based) ──
+
+    def _equalize_db(self, container):
+        """Normalize per-row volume so every
+        row produces the same RMS level.
+
+        Renders a short preview of each
+        included row with vol=100, measures
+        actual RMS (accounting for carrier
+        freq, waveform, BW, FM, binaural
+        split, bilateral panning, amplitude
+        modulation), then scales vol so the
+        quietest row stays at 100% and louder
+        rows are brought down."""
+        pl = container["playlist"]
+        sr = 44100
+        dur = 0.5
+        t = np.arange(int(sr * dur)) / sr
+
+        pairs = []  # (row, rms)
+
+        for row in pl.rows:
+            if not row.included:
+                continue
+
+            # save & neutralize vol
+            saved_lv = row.left.vol
+            saved_rv = row.right.vol
+            row.left.vol  = 100.0
+            row.right.vol = 100.0
+
+            try:
+                if row.binaural_on:
+                    l_car = (row.bi_carrier
+                             - row.bi_bw / 2)
+                    r_car = (row.bi_carrier
+                             + row.bi_bw / 2)
+                    ll, lr = row.left.render(
+                        t, "left", l_car,
+                        row.bi_wave,
+                        row.bi_bw,
+                        row.bi_left_amp)
+                    rl, rr = row.right.render(
+                        t, "right", r_car,
+                        row.bi_wave,
+                        row.bi_bw,
+                        row.bi_right_amp)
+                else:
+                    ll, lr = row.left.render(
+                        t, "left")
+                    rl, rr = row.right.render(
+                        t, "right")
+            finally:
+                row.left.vol  = saved_lv
+                row.right.vol = saved_rv
+
+            left  = ll + rl
+            right = lr + rr
+            rms = np.sqrt(
+                (np.mean(left ** 2)
+                 + np.mean(right ** 2)) / 2)
+            if rms > 0.001:
+                pairs.append((row, rms))
+
+        if not pairs:
+            return
+
+        min_rms = min(rms for _, rms in pairs)
+
+        for row, rms in pairs:
+            ratio = min_rms / rms
+            vol_pct = max(
+                1.0, round(ratio * 100, 1))
+            row.left.vol  = vol_pct
+            row.right.vol = vol_pct
+
+        # push to UI spins
+        for slot in container["slots"]:
+            cfg = slot["config"]
+            if not any(r is cfg for r, _ in pairs):
+                continue
+            for key, val in [
+                ("left_vol_spin",  cfg.left.vol),
+                ("right_vol_spin", cfg.right.vol),
+                ("bi_l_vol_spin",  cfg.left.vol),
+                ("bi_r_vol_spin",  cfg.right.vol),
+            ]:
+                sp = slot.get(key)
+                if sp:
+                    sp.set(val)
 
     # ── reflow (multi-column, static width) ──
 
@@ -295,7 +387,8 @@ class PlaylistMixin:
         content = tk.Frame(frame, bg=CARD)
         content.pack(fill="x")
 
-        # ── line 2: transport + play rows + total ──
+        # ── line 2: transport + eq + play rows
+        #    + total ──
         h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
@@ -332,6 +425,18 @@ class PlaylistMixin:
             padx=4, pady=2,
             cursor="hand2")
         load_btn.pack(
+            side="left", padx=(8, 0))
+
+        eq_btn = tk.Button(
+            h2, text="Eq dB",
+            font=("Helvetica", 9),
+            bg=SURFACE2, fg=MUTED,
+            activebackground=ACCENT2,
+            activeforeground=ACCENT,
+            relief="flat", bd=0,
+            padx=4, pady=2,
+            cursor="hand2")
+        eq_btn.pack(
             side="left", padx=(8, 0))
 
         play_hint = tk.Label(
@@ -392,6 +497,7 @@ class PlaylistMixin:
             "play_btn":     play_btn,
             "export_btn":   export_btn,
             "load_btn":     load_btn,
+            "eq_btn":       eq_btn,
             "total_lbl":    total_lbl,
             "rows_frame":   rows_frame,
             "btn_frame":    btn_frame,
@@ -434,6 +540,17 @@ class PlaylistMixin:
         load_btn.config(
             command=lambda c=container:
                 self._load_into_playlist(c))
+        eq_btn.config(
+            command=lambda c=container:
+                self._equalize_db(c))
+        eq_btn.bind(
+            "<Enter>",
+            lambda e, b=eq_btn:
+                b.config(fg=ACCENT))
+        eq_btn.bind(
+            "<Leave>",
+            lambda e, b=eq_btn:
+                b.config(fg=MUTED))
 
         pl_grip.bind(
             "<ButtonPress-1>",
