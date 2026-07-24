@@ -2,7 +2,6 @@ import copy
 import tkinter as tk
 from tkinter import ttk
 import random
-import numpy as np
 
 from hertz_forge.constants import (
     BG, SURFACE, SURFACE2, ACCENT, ACCENT2,
@@ -41,77 +40,39 @@ class PlaylistMixin:
         if self._pl_shuffle:
             random.shuffle(self._pl_play_order)
 
-    # ── equalize dB (RMS-based) ──
+    # ── equalize dB ──
 
     def _equalize_db(self, container):
         """Normalize per-row volume so every
-        row produces the same RMS level.
+        row sounds equally loud relative to the
+        one with the lowest carrier frequency.
 
-        Renders a short preview of each
-        included row with vol=100, measures
-        actual RMS (accounting for carrier
-        freq, waveform, BW, FM, binaural
-        split, bilateral panning, amplitude
-        modulation), then scales vol so the
-        quietest row stays at 100% and louder
-        rows are brought down."""
+        Amplitude ratio = min_carrier / carrier,
+        applied to both L and R vol (0-100)."""
         pl = container["playlist"]
-        sr = 44100
-        dur = 0.5
-        t = np.arange(int(sr * dur)) / sr
-
-        pairs = []  # (row, rms)
-
+        pairs = []   # (row, effective_carrier)
         for row in pl.rows:
             if not row.included:
                 continue
-
-            # save & neutralize vol
-            saved_lv = row.left.vol
-            saved_rv = row.right.vol
-            row.left.vol  = 100.0
-            row.right.vol = 100.0
-
-            try:
-                if row.binaural_on:
-                    l_car = (row.bi_carrier
-                             - row.bi_bw / 2)
-                    r_car = (row.bi_carrier
-                             + row.bi_bw / 2)
-                    ll, lr = row.left.render(
-                        t, "left", l_car,
-                        row.bi_wave,
-                        row.bi_bw,
-                        row.bi_left_amp)
-                    rl, rr = row.right.render(
-                        t, "right", r_car,
-                        row.bi_wave,
-                        row.bi_bw,
-                        row.bi_right_amp)
+            if row.binaural_on:
+                c = row.bi_carrier
+            else:
+                lc = row.left.carrier
+                rc = row.right.carrier
+                if lc > 0 and rc > 0:
+                    c = (lc + rc) / 2
                 else:
-                    ll, lr = row.left.render(
-                        t, "left")
-                    rl, rr = row.right.render(
-                        t, "right")
-            finally:
-                row.left.vol  = saved_lv
-                row.right.vol = saved_rv
-
-            left  = ll + rl
-            right = lr + rr
-            rms = np.sqrt(
-                (np.mean(left ** 2)
-                 + np.mean(right ** 2)) / 2)
-            if rms > 0.001:
-                pairs.append((row, rms))
+                    c = max(lc, rc)
+            if c > 0:
+                pairs.append((row, c))
 
         if not pairs:
             return
 
-        min_rms = min(rms for _, rms in pairs)
+        min_c = min(c for _, c in pairs)
 
-        for row, rms in pairs:
-            ratio = min_rms / rms
+        for row, carrier in pairs:
+            ratio = min_c / carrier
             vol_pct = max(
                 1.0, round(ratio * 100, 1))
             row.left.vol  = vol_pct
@@ -120,17 +81,25 @@ class PlaylistMixin:
         # push to UI spins
         for slot in container["slots"]:
             cfg = slot["config"]
-            if not any(r is cfg for r, _ in pairs):
+            matched = [
+                r for r, _ in pairs
+                if r is cfg]
+            if not matched:
                 continue
-            for key, val in [
-                ("left_vol_spin",  cfg.left.vol),
-                ("right_vol_spin", cfg.right.vol),
-                ("bi_l_vol_spin",  cfg.left.vol),
-                ("bi_r_vol_spin",  cfg.right.vol),
-            ]:
-                sp = slot.get(key)
-                if sp:
-                    sp.set(val)
+            # normal-mode spins
+            ls = slot.get("left_vol_spin")
+            rs = slot.get("right_vol_spin")
+            if ls:
+                ls.set(cfg.left.vol)
+            if rs:
+                rs.set(cfg.right.vol)
+            # binaural-mode spins
+            bl = slot.get("bi_l_vol_spin")
+            br = slot.get("bi_r_vol_spin")
+            if bl:
+                bl.set(cfg.left.vol)
+            if br:
+                br.set(cfg.right.vol)
 
     # ── reflow (multi-column, static width) ──
 
@@ -387,8 +356,8 @@ class PlaylistMixin:
         content = tk.Frame(frame, bg=CARD)
         content.pack(fill="x")
 
-        # ── line 2: transport + eq + play rows
-        #    + total ──
+        # ── line 2: transport + play rows +
+        #    eq + total ──
         h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
