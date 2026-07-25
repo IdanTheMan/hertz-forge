@@ -2,6 +2,7 @@ import copy
 import tkinter as tk
 from tkinter import ttk
 import random
+import numpy as np
 
 from hertz_forge.constants import (
     BG, SURFACE, SURFACE2, ACCENT, ACCENT2,
@@ -40,39 +41,116 @@ class PlaylistMixin:
         if self._pl_shuffle:
             random.shuffle(self._pl_play_order)
 
-    # ── equalize dB ──
+    # ── equalize dB (RMS + A-weighting) ──
+
+    @staticmethod
+    def _a_weight_linear(f):
+        """A-weighting as a linear gain relative
+        to 1 kHz.  Accounts for the fact that
+        human hearing is not equally sensitive to
+        all frequencies (ISO 61672 / IEC 61672).
+        """
+        if f <= 0:
+            return 1.0
+        f2 = f * f
+        c1 = 20.6 ** 2
+        c2 = 107.7 ** 2
+        c3 = 737.9 ** 2
+        c4 = 12194.0 ** 2
+        ra = ((c4 * f2 * f2)
+              / ((f2 + c1)
+                 * np.sqrt((f2 + c2) * (f2 + c3))
+                 * (f2 + c4)))
+        # normalise so 1 kHz = 1.0
+        f2k = 1000.0 ** 2
+        rak = ((c4 * f2k * f2k)
+               / ((f2k + c1)
+                  * np.sqrt((f2k + c2) * (f2k + c3))
+                  * (f2k + c4)))
+        return ra / rak
 
     def _equalize_db(self, container):
-        """Normalize per-row volume so every
-        row sounds equally loud relative to the
-        one with the lowest carrier frequency.
+        """Normalize per-row volume so every row
+        produces the same *perceived* loudness.
 
-        Amplitude ratio = min_carrier / carrier,
-        applied to both L and R vol (0-100)."""
+        Renders a short preview of each included
+        row with vol=100, measures RMS, then
+        applies ISO A-weighting based on the
+        effective carrier frequency.  The quietest
+        row (in perceptual terms) keeps vol=100;
+        louder rows are brought down."""
         pl = container["playlist"]
-        pairs = []   # (row, effective_carrier)
+        sr = 44100
+        dur = 0.5
+        t = np.arange(int(sr * dur)) / sr
+
+        pairs = []  # (row, perceptual_loudness)
+
         for row in pl.rows:
             if not row.included:
                 continue
-            if row.binaural_on:
-                c = row.bi_carrier
-            else:
-                lc = row.left.carrier
-                rc = row.right.carrier
-                if lc > 0 and rc > 0:
-                    c = (lc + rc) / 2
+
+            # save & neutralise vol
+            saved_lv = row.left.vol
+            saved_rv = row.right.vol
+            row.left.vol  = 100.0
+            row.right.vol = 100.0
+
+            try:
+                if row.binaural_on:
+                    l_car = (row.bi_carrier
+                             - row.bi_bw / 2)
+                    r_car = (row.bi_carrier
+                             + row.bi_bw / 2)
+                    eff_carrier = row.bi_carrier
+                    ll, lr = row.left.render(
+                        t, "left", l_car,
+                        row.bi_wave,
+                        row.bi_bw,
+                        row.bi_left_amp)
+                    rl, rr = row.right.render(
+                        t, "right", r_car,
+                        row.bi_wave,
+                        row.bi_bw,
+                        row.bi_right_amp)
                 else:
-                    c = max(lc, rc)
-            if c > 0:
-                pairs.append((row, c))
+                    ll, lr = row.left.render(
+                        t, "left")
+                    rl, rr = row.right.render(
+                        t, "right")
+                    lc = row.left.carrier
+                    rc = row.right.carrier
+                    if lc > 0 and rc > 0:
+                        eff_carrier = (
+                            lc + rc) / 2
+                    else:
+                        eff_carrier = max(
+                            lc, rc)
+            finally:
+                row.left.vol  = saved_lv
+                row.right.vol = saved_rv
+
+            left  = ll + rl
+            right = lr + rr
+            rms = np.sqrt(
+                (np.mean(left ** 2)
+                 + np.mean(right ** 2)) / 2)
+
+            # apply A-weighting
+            aw = self._a_weight_linear(
+                eff_carrier)
+            perceptual = rms * aw
+
+            if perceptual > 0.0001:
+                pairs.append((row, perceptual))
 
         if not pairs:
             return
 
-        min_c = min(c for _, c in pairs)
+        min_p = min(p for _, p in pairs)
 
-        for row, carrier in pairs:
-            ratio = min_c / carrier
+        for row, p in pairs:
+            ratio = min_p / p
             vol_pct = max(
                 1.0, round(ratio * 100, 1))
             row.left.vol  = vol_pct
@@ -81,25 +159,18 @@ class PlaylistMixin:
         # push to UI spins
         for slot in container["slots"]:
             cfg = slot["config"]
-            matched = [
-                r for r, _ in pairs
-                if r is cfg]
-            if not matched:
+            if not any(
+                    r is cfg for r, _ in pairs):
                 continue
-            # normal-mode spins
-            ls = slot.get("left_vol_spin")
-            rs = slot.get("right_vol_spin")
-            if ls:
-                ls.set(cfg.left.vol)
-            if rs:
-                rs.set(cfg.right.vol)
-            # binaural-mode spins
-            bl = slot.get("bi_l_vol_spin")
-            br = slot.get("bi_r_vol_spin")
-            if bl:
-                bl.set(cfg.left.vol)
-            if br:
-                br.set(cfg.right.vol)
+            for key, val in [
+                ("left_vol_spin",  cfg.left.vol),
+                ("right_vol_spin", cfg.right.vol),
+                ("bi_l_vol_spin",  cfg.left.vol),
+                ("bi_r_vol_spin",  cfg.right.vol),
+            ]:
+                sp = slot.get(key)
+                if sp:
+                    sp.set(val)
 
     # ── reflow (multi-column, static width) ──
 
@@ -356,8 +427,8 @@ class PlaylistMixin:
         content = tk.Frame(frame, bg=CARD)
         content.pack(fill="x")
 
-        # ── line 2: transport + play rows +
-        #    eq + total ──
+        # ── line 2: transport + eq + play rows
+        #    + total ──
         h2 = tk.Frame(content, bg=CARD)
         h2.pack(fill="x", padx=8, pady=(4, 0))
 
