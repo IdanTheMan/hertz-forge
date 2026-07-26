@@ -609,6 +609,7 @@ class RowMixin:
         ch = (cfg.left if side == "left"
               else cfg.right)
 
+        # row 1: carrier
         r = self._label_row(parent, "Carrier")
         car_spin = SpinEntry(
             r, width=5, from_=0, to=2000,
@@ -621,15 +622,16 @@ class RowMixin:
                 self._update_fm_display(
                     slot, s)))
         car_spin.grid(
-            row=0, column=1, sticky="w",
-            padx=(0, 2))
+            row=0, column=1, sticky="w")
         slot[f"{side}_carrier_spin"] = car_spin
 
+        # row 2: waveform
+        r_w = self._label_row(parent, "Wave")
         wv = tk.StringVar(value=ch.wave)
         wc = ttk.Combobox(
-            r, textvariable=wv, values=WAVES,
-            state="readonly", width=8)
-        wc.grid(row=0, column=2, sticky="w")
+            r_w, textvariable=wv, values=WAVES,
+            state="readonly", width=10)
+        wc.grid(row=0, column=1, sticky="w")
         wc.bind(
             "<<ComboboxSelected>>",
             lambda e, s=side: (
@@ -637,6 +639,7 @@ class RowMixin:
                 self._apply_sync(slot, s)))
         slot[f"{side}_wave_var"] = wv
 
+        # row 3: BW
         r2 = self._label_row(parent, "BW")
         bw_spin = SpinEntry(
             r2, width=5, from_=0, to=100,
@@ -650,6 +653,7 @@ class RowMixin:
             row=0, column=1, sticky="w")
         slot[f"{side}_bw_spin"] = bw_spin
 
+        # row 4: amp
         r3 = self._label_row(parent, "Amp")
         amp_spin = SpinEntry(
             r3, width=5, from_=0, to=100,
@@ -663,6 +667,7 @@ class RowMixin:
             row=0, column=1, sticky="w")
         slot[f"{side}_amp_spin"] = amp_spin
 
+        # row 5: vol
         r4 = self._label_row(parent, "Vol")
         vol_spin = SpinEntry(
             r4, width=5, from_=0, to=100,
